@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Common.h"
+#include<map>
+using std::map;
+using std::make_pair;
 
 //--------------------------------------------------------------------------------------
 // Helpers
@@ -151,12 +154,14 @@ struct D3D12ShaderInfo
 struct D3D12Resources 
 {
 	ID3D12Resource*									DXROutput;
+	ID3D12Resource*									depthStencilBuffer = nullptr;
 
 	ID3D12Resource*									vertexBuffer = nullptr;
+	ID3D12Resource*									vertexIntermediateBuffer = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW						vertexBufferView;
 	ID3D12Resource*									indexBuffer = nullptr;
 	D3D12_INDEX_BUFFER_VIEW							indexBufferView;
-
+	
 	ID3D12Resource*									viewCB = nullptr;
 	ViewCB											viewCBData;
 	UINT8*											viewCBStart = nullptr;
@@ -166,13 +171,15 @@ struct D3D12Resources
 	UINT8*											materialCBStart = nullptr;
 
 	ID3D12DescriptorHeap*							rtvHeap = nullptr;
-	ID3D12DescriptorHeap*							descriptorHeap = nullptr;
+	ID3D12DescriptorHeap*							dsvHeap = nullptr;
+	ID3D12DescriptorHeap*							dxRenderDescriptorHeap = nullptr;
+	ID3D12DescriptorHeap*							dxrDescriptorHeap = nullptr;
 
 	ID3D12Resource*									texture = nullptr;
 	ID3D12Resource*									textureUploadResource = nullptr;
 
 	UINT											rtvDescSize = 0;
-
+	UINT											dsvDescSize = 0;
 	float											translationOffset = 0;
 	float											rotationOffset = 0;
 	DirectX::XMFLOAT3								eyeAngle;
@@ -199,6 +206,15 @@ struct D3D12Global
 	int												width = 1920;
 	int												height = 1080;
 	bool											vsync = false;
+};
+
+//--------------------------------------------------------------------------------------
+// DirectX RenderPass
+//--------------------------------------------------------------------------------------
+struct D3D12RenderGlobal {
+	ID3D12RootSignature* pRootSignature = nullptr;
+
+	
 };
 
 //--------------------------------------------------------------------------------------

@@ -197,10 +197,9 @@ namespace D3DResources
 	void Create_Vertex_Buffer(D3D12Global& d3d, D3D12Resources& resources, Model& model)
 	{
 		UINT64 size = (UINT)model.vertices.size() * sizeof(Vertex);
-		ID3D12Resource* vertexBufferUploader = nullptr;
 		
 		//Upload Data from CPU->GPU(Upload Heap)->GPU(Default Heap which is fast to read but can't be accessed by cpu)
-		resources.vertexBuffer =CreateDefaultBuffer(d3d.device, d3d.cmdList, model.vertices.data(),size, vertexBufferUploader);
+		resources.vertexBuffer =CreateDefaultBuffer(d3d.device, d3d.cmdList, model.vertices.data(),size, resources.vertexIntermediateBuffer);
 		
 		// Initialize the vertex buffer view
 		resources.vertexBufferView.BufferLocation = resources.vertexBuffer->GetGPUVirtualAddress();
@@ -272,6 +271,54 @@ namespace D3DResources
 	}
 
 	/**
+	* Create the depth and stencil buffer's View
+	*/
+	void Create_DepthStencilBuffer_DSV(D3D12Global& d3d, D3D12Resources& resources) {
+		D3D12_RESOURCE_DESC depthStencilDesc;
+		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthStencilDesc.Alignment = 0;
+		depthStencilDesc.Width = d3d.width;
+		depthStencilDesc.Height = d3d.height;
+		depthStencilDesc.DepthOrArraySize = 1;
+		depthStencilDesc.MipLevels = 1;
+		// SSAO  requires an SRV to the depth buffer to read from the depth buffer.  
+		// Therefore, because we need to create two views to the same resource:
+		// 1. SRV format: DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+		// 2. DSV Format: DXGI_FORMAT_D24_UNORM_S8_UINT
+		// we need to create the depth buffer resource with a typeless format.  
+		depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.SampleDesc.Quality = 0;
+		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		D3D12_CLEAR_VALUE optClear;
+		optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		optClear.DepthStencil.Depth = 1.0f;
+		optClear.DepthStencil.Stencil = 0;
+
+		//Create DepthStencil Buffer
+		d3d.device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&depthStencilDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			&optClear,
+			IID_PPV_ARGS(&resources.depthStencilBuffer));
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsvDesc.Texture2D.MipSlice = 0;
+
+		//Create DepthAndStencilView
+		d3d.device->CreateDepthStencilView(resources.depthStencilBuffer, &dsvDesc,resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+		//
+	}
+
+	/**
 	* Create and initialize the view constant buffer.
 	*/
 	void Create_View_CB(D3D12Global& d3d, D3D12Resources& resources)
@@ -308,7 +355,7 @@ namespace D3DResources
 	/**
 	* Create the RTV descriptor heap.
 	*/
-	void Create_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources)
+	void Create_RTV_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources)
 	{
 		// Describe the RTV descriptor heap
 		D3D12_DESCRIPTOR_HEAP_DESC rtvDesc = {};
@@ -324,6 +371,23 @@ namespace D3DResources
 #endif
 
 		resources.rtvDescSize = d3d.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
+
+	/**
+	* Create the Dsv descriptor heap.
+	*/
+	void Create_DSV_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources) {
+		D3D12_DESCRIPTOR_HEAP_DESC dsvDesc = {};
+		dsvDesc.NumDescriptors = 2;
+		dsvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		dsvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+		//Create the DSV heap
+		HRESULT hr = d3d.device->CreateDescriptorHeap(&dsvDesc, IID_PPV_ARGS(&resources.dsvHeap));
+		Utils::Validate(hr, L"Error: failed to create DSV descriptor heap!");
+		resources.dsvHeap->SetName(L"DSV Descriptor Heap");
+
+		resources.dsvDescSize = d3d.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	}
 
 	/**
@@ -379,12 +443,16 @@ namespace D3DResources
 		if (resources.materialCBStart) resources.materialCBStart = nullptr;
 
 		SAFE_RELEASE(resources.DXROutput);
+		SAFE_RELEASE(resources.depthStencilBuffer);
 		SAFE_RELEASE(resources.vertexBuffer);
+		SAFE_RELEASE(resources.vertexIntermediateBuffer);
 		SAFE_RELEASE(resources.indexBuffer);
 		SAFE_RELEASE(resources.viewCB);
 		SAFE_RELEASE(resources.materialCB);
 		SAFE_RELEASE(resources.rtvHeap);
-		SAFE_RELEASE(resources.descriptorHeap);
+		SAFE_RELEASE(resources.dsvHeap);
+		SAFE_RELEASE(resources.dxRenderDescriptorHeap);
+		SAFE_RELEASE(resources.dxrDescriptorHeap);
 		SAFE_RELEASE(resources.texture);
 		SAFE_RELEASE(resources.textureUploadResource);
 	}
@@ -638,7 +706,7 @@ namespace D3D12
 		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		desc.SampleDesc.Count = 1;
-
+		desc.SampleDesc.Quality = 0;
 		// Create the swap chain
 		IDXGISwapChain1* swapChain;
 		HRESULT hr = d3d.factory->CreateSwapChainForHwnd(d3d.cmdQueue, window, &desc, nullptr, nullptr, &swapChain);
@@ -778,6 +846,56 @@ namespace D3D12
 		SAFE_RELEASE(d3d.factory);
 	}
 
+}
+
+//--------------------------------------------------------------------------------------
+// D3D12 Render Functions
+//--------------------------------------------------------------------------------------
+
+namespace D3D12Render {
+	/**
+	*  Build Constant Buffer Descriptor Heaps
+	*/
+	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+
+	}
+
+	/**
+	* Build RootSignature
+	*/
+	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+
+	}
+
+	/**
+	* Build Vs and Ps Shader
+	*/
+	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+
+	}
+
+	/**
+	* Build Vertex Input Layout
+	*/
+	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+
+	}
+
+	/**
+	* Build Pipeline
+	*/
+	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+
+	}
+
+	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+
+	}
+
+	void Destroy(D3D12RenderGlobal& d3dRender) {
+		SAFE_RELEASE(d3dRender.pRootSignature);
+
+	}
 }
 
 //--------------------------------------------------------------------------------------
@@ -1215,7 +1333,7 @@ namespace DXR
 		memcpy(pData, dxr.rtpsoInfo->GetShaderIdentifier(L"RayGen_12"), shaderIdSize);
 
 		// Set the root parameter data. Point to start of descriptor heap.
-		*reinterpret_cast<D3D12_GPU_DESCRIPTOR_HANDLE*>(pData + shaderIdSize) = resources.descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+		*reinterpret_cast<D3D12_GPU_DESCRIPTOR_HANDLE*>(pData + shaderIdSize) = resources.dxrDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
 		// Shader Record 1 - Miss program (no local root arguments to set)
 		pData += dxr.shaderTableRecordSize;
@@ -1226,7 +1344,7 @@ namespace DXR
 		memcpy(pData, dxr.rtpsoInfo->GetShaderIdentifier(L"HitGroup"), shaderIdSize);
 
 		// Set the root parameter data. Point to start of descriptor heap.
-		*reinterpret_cast<D3D12_GPU_DESCRIPTOR_HANDLE*>(pData + shaderIdSize) = resources.descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+		*reinterpret_cast<D3D12_GPU_DESCRIPTOR_HANDLE*>(pData + shaderIdSize) = resources.dxrDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
 		// Unmap
 		dxr.shaderTable->Unmap(0, nullptr);
@@ -1252,14 +1370,14 @@ namespace DXR
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		// Create the descriptor heap
-		HRESULT hr = d3d.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resources.descriptorHeap));
+		HRESULT hr = d3d.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resources.dxrDescriptorHeap));
 		Utils::Validate(hr, L"Error: failed to create DXR CBV/SRV/UAV descriptor heap!");
 
 		// Get the descriptor heap handle and increment size
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = resources.descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = resources.dxrDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 		UINT handleIncrement = d3d.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 #if NAME_D3D_RESOURCES
-		resources.descriptorHeap->SetName(L"DXR Descriptor Heap");
+		resources.dxrDescriptorHeap->SetName(L"DXR Descriptor Heap");
 #endif
 
 		// Create the ViewCB CBV
@@ -1384,7 +1502,7 @@ namespace DXR
 		d3d.cmdList->ResourceBarrier(2, OutputBarriers);
 
 		// Set the UAV/SRV/CBV and sampler heaps
-		ID3D12DescriptorHeap* ppHeaps[] = { resources.descriptorHeap };
+		ID3D12DescriptorHeap* ppHeaps[] = { resources.dxrDescriptorHeap };
 		d3d.cmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 		// Dispatch rays

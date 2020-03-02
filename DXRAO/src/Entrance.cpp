@@ -41,14 +41,20 @@ public:
 		D3D12::Reset_CommandList(d3d);
 
 		// Create common resources
-		D3DResources::Create_Descriptor_Heaps(d3d, resources);
+		D3DResources::Create_RTV_Descriptor_Heaps(d3d, resources);
 		D3DResources::Create_BackBuffer_RTV(d3d, resources);
+
+		D3DResources::Create_DSV_Descriptor_Heaps(d3d, resources);
+		D3DResources::Create_DepthStencilBuffer_DSV(d3d, resources);
+
 		D3DResources::Create_Vertex_Buffer(d3d, resources, model);
 		D3DResources::Create_Index_Buffer(d3d, resources, model);
 		D3DResources::Create_Texture(d3d, resources, material);
 		D3DResources::Create_View_CB(d3d, resources);
 		D3DResources::Create_Material_CB(d3d, resources, material);
 
+		// Create DirectX render resources
+		
 		// Create DXR specific resources
 		DXR::Create_Bottom_Level_AS(d3d, dxr, resources, model);
 		DXR::Create_Top_Level_AS(d3d, dxr, resources);
@@ -87,6 +93,7 @@ public:
 		CloseHandle(d3d.fenceEvent);
 
 		DXR::Destroy(dxr);
+		D3D12Render::Destroy(d3dRender);
 		D3DResources::Destroy(resources);
 		D3DShaders::Destroy(shaderCompiler);
 		D3D12::Destroy(d3d);
@@ -102,6 +109,7 @@ private:
 	DXRGlobal dxr = {};
 	D3D12Global d3d = {};
 	D3D12Resources resources = {};
+	D3D12RenderGlobal d3dRender = {};
 	D3D12ShaderCompilerInfo shaderCompiler;
 };
 

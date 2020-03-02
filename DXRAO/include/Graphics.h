@@ -21,15 +21,18 @@ static const D3D12_HEAP_PROPERTIES DefaultHeapProperties =
 namespace D3DResources
 {
 	void Create_Buffer(D3D12Global &d3d, D3D12BufferCreateInfo &info, ID3D12Resource** ppResource);
+
 	void Create_Texture(D3D12Global &d3d, D3D12Resources &resources, Material &material);
 	void Create_Vertex_Buffer(D3D12Global &d3d, D3D12Resources &resources, Model &model);
 	void Create_Index_Buffer(D3D12Global &d3d, D3D12Resources &resources, Model &model);
 	void Create_Constant_Buffer(D3D12Global &d3d, ID3D12Resource** buffer, UINT64 size);
 	void Create_BackBuffer_RTV(D3D12Global &d3d, D3D12Resources &resources);
+	void Create_DepthStencilBuffer_DSV(D3D12Global& d3d, D3D12Resources& resources);
 	void Create_View_CB(D3D12Global &d3d, D3D12Resources &resources);
 	void Create_Material_CB(D3D12Global &d3d, D3D12Resources &resources, const Material &material);
-	void Create_Descriptor_Heaps(D3D12Global &d3d, D3D12Resources &resources);
-
+	void Create_RTV_Descriptor_Heaps(D3D12Global &d3d, D3D12Resources &resources);
+	void Create_DSV_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources);
+		
 	void Update_View_CB(D3D12Global &d3d, D3D12Resources &resources);
 
 	void Upload_Texture(D3D12Global &d3d, ID3D12Resource* destResource, ID3D12Resource* srcResource, const TextureInfo &texture);
@@ -65,6 +68,18 @@ namespace D3D12
 
 	void Destroy(D3D12Global &d3d);
 }
+
+namespace D3D12Render {
+	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+
+	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+
+	void Destroy(D3D12RenderGlobal& d3dRender);
+};
 
 namespace DXR
 {	
