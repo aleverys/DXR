@@ -1,9 +1,6 @@
 #pragma once
 
 #include "Common.h"
-#include<map>
-using std::map;
-using std::make_pair;
 
 //--------------------------------------------------------------------------------------
 // Helpers
@@ -212,8 +209,7 @@ struct D3D12Global
 // DirectX RenderPass
 //--------------------------------------------------------------------------------------
 struct D3D12RenderGlobal {
-	ID3D12RootSignature* pRootSignature = nullptr;
-
+	std::map<string,ID3D12RootSignature*> signatures;
 	
 };
 
