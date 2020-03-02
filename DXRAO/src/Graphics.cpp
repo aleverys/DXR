@@ -315,7 +315,6 @@ namespace D3DResources
 		//Create DepthAndStencilView
 		d3d.device->CreateDepthStencilView(resources.depthStencilBuffer, &dsvDesc,resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-		//
 	}
 
 	/**
@@ -546,6 +545,32 @@ namespace D3DShaders
 
 		hr = shaderCompiler.DxcDllHelper.CreateInstance(CLSID_DxcLibrary, &shaderCompiler.library);
 		Utils::Validate(hr, L"Failed to create DxcLibrary!");
+	}
+
+	void Compile_Shader(
+		const std::wstring& filename,
+		const D3D_SHADER_MACRO* defines,
+		const std::string& entrypoint,
+		const std::string& target,
+		ID3DBlob** byteCode)
+	{
+		UINT compileFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)  
+		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+		HRESULT hr = S_OK;
+
+		*byteCode = nullptr;
+
+		ComPtr<ID3DBlob> errors;
+		hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+			entrypoint.c_str(), target.c_str(), compileFlags, 0, byteCode, &errors);
+
+		if (errors != nullptr)
+			OutputDebugStringA((char*)errors->GetBufferPointer());
+
+		Utils::Validate(hr, L"Failed to Complier Shader!");
 	}
 
 	/**
@@ -854,37 +879,150 @@ namespace D3D12
 
 namespace D3D12Render {
 	/**
+	* Create Contant Buffer 
+	*/
+	void Create_Contant_Buffer(D3D12Global& d3d, D3D12Resources& resources) {
+		//Base Pass
+		D3DResources::Create_Constant_Buffer(d3d, &resources.basePassCB, sizeof(BasePassCB));
+		D3DResources::Create_Constant_Buffer(d3d, &resources.basePassPerObjCB, sizeof(BasePassPerObjectCB));
+	}
+
+	/**
 	*  Build Constant Buffer Descriptor Heaps
 	*/
-	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources) {
+		// Describe the CBV/SRV/UAV heap
+		// Need 2 entries:
+		// 1 CBV for the ViewCB
+		// 1 CBV for the MaterialCB
+		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+		desc.NumDescriptors = 2;
+		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
+		// Create the descriptor heap
+		HRESULT hr = d3d.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&resources.dxBasePassRenderDescriptorHeap));
+		Utils::Validate(hr, L"Error: failed to create DX Base Pass CBV/SRV/UAV descriptor heap!");
+
+		// Get the descriptor heap handle and increment size
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = resources.dxBasePassRenderDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		UINT handleIncrement = d3d.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+#if NAME_D3D_RESOURCES
+		resources.dxBasePassRenderDescriptorHeap->SetName(L"DX BasePass Descriptor Heap");
+#endif
+		// Create the ViewCB CBV
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.basePassCB));
+		cbvDesc.BufferLocation = resources.basePassCB->GetGPUVirtualAddress();
+
+		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
+
+		// Create the MaterialCB CBV
+		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.basePassPerObjCB));
+		cbvDesc.BufferLocation = resources.basePassPerObjCB->GetGPUVirtualAddress();
+
+		handle.ptr += handleIncrement;
+		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
 	}
 
 	/**
 	* Build RootSignature
 	*/
-	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+		//Base Pass Root_Signature
+		// Describe the ray generation root signature
+		D3D12_DESCRIPTOR_RANGE ranges[1];
+
+		ranges[0].BaseShaderRegister = 0;
+		ranges[0].NumDescriptors = 2;
+		ranges[0].RegisterSpace = 0;
+		ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		ranges[0].OffsetInDescriptorsFromTableStart = 0;
+
+		D3D12_ROOT_PARAMETER param0 = {};
+		param0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		param0.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		param0.DescriptorTable.NumDescriptorRanges = _countof(ranges);
+		param0.DescriptorTable.pDescriptorRanges = ranges;
+
+		D3D12_ROOT_PARAMETER rootParams[1] = { param0 };
+
+		D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
+		rootDesc.NumParameters = _countof(rootParams);
+		rootDesc.pParameters = rootParams;
+		rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+
+		// Create the root signature
+		d3dRender.signatures["basepass"] = D3D12::Create_Root_Signature(d3d, rootDesc);
+#if NAME_D3D_RESOURCES
+		d3dRender.signatures["basepass"]->SetName(L"DX BasePass Root Signature");
+#endif
 
 	}
 
 	/**
 	* Build Vs and Ps Shader
 	*/
-	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+		//Base Pass
+		d3dRender.shaders["basepass_vs"] = nullptr;
+		ID3DBlob** byteCode = &(d3dRender.shaders["basepass_vs"]);
+		D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "vs", "vs_5_1", byteCode);
+
+		d3dRender.shaders["basepass_ps"] = nullptr;
+		byteCode = &(d3dRender.shaders["basepass_ps"]);
+		D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "ps", "vs_5_1", byteCode);
 
 	}
 
 	/**
 	* Build Vertex Input Layout
 	*/
-	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
-
+	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+		d3dRender.inputLayout =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		};
 	}
 
 	/**
 	* Build Pipeline
 	*/
-	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+		//Base Pass
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC basePassPsoDesc;
+
+		ZeroMemory(&basePassPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+		basePassPsoDesc.InputLayout = { d3dRender.inputLayout.data(), (UINT)d3dRender.inputLayout.size() };
+		basePassPsoDesc.pRootSignature = d3dRender.signatures["basepass"];
+		
+		basePassPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		basePassPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+		basePassPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+		basePassPsoDesc.SampleMask = UINT_MAX;
+		basePassPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		basePassPsoDesc.NumRenderTargets = 1;
+		basePassPsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		basePassPsoDesc.SampleDesc.Count = 1;
+		basePassPsoDesc.SampleDesc.Quality = 0;
+		basePassPsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		basePassPsoDesc.VS =
+		{
+			reinterpret_cast<BYTE*>(d3dRender.shaders["basepass_vs"]->GetBufferPointer(),
+			d3dRender.shaders["basepass_vs"]->GetBufferSize())
+		};
+
+		basePassPsoDesc.PS =
+		{
+			reinterpret_cast<BYTE*>(d3dRender.shaders["basepass_ps"]->GetBufferPointer(),
+			d3dRender.shaders["basepass_ps"]->GetBufferSize())
+		};
+		
+		HRESULT hr=d3d.device->CreateGraphicsPipelineState(&basePassPsoDesc, IID_PPV_ARGS(&d3dRender.pipelineStates["basepass"]));
+		Utils::Validate(hr, L"Error: failed to build BasePass PSO!");
 
 	}
 
@@ -893,8 +1031,12 @@ namespace D3D12Render {
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {
-		//SAFE_RELEASE(d3dRender.pRootSignature);
-
+		for (auto iter = d3dRender.pipelineStates.begin(); iter != d3dRender.pipelineStates.end(); iter++)
+			SAFE_RELEASE(iter->second);
+		for (auto iter = d3dRender.shaders.begin(); iter != d3dRender.shaders.end(); iter++)
+			SAFE_RELEASE(iter->second);
+		for (auto iter = d3dRender.signatures.begin(); iter != d3dRender.signatures.end(); iter++)
+			SAFE_RELEASE(iter->second);
 	}
 }
 

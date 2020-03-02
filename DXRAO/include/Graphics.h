@@ -2,6 +2,10 @@
 
 #include "Structures.h"
 
+#pragma comment(lib,"d3dcompiler.lib")
+#pragma comment(lib, "D3D12.lib")
+#pragma comment(lib, "dxgi.lib")
+
 static const D3D12_HEAP_PROPERTIES UploadHeapProperties =
 {
 	D3D12_HEAP_TYPE_UPLOAD,
@@ -70,11 +74,12 @@ namespace D3D12
 }
 
 namespace D3D12Render {
-	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
-	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
-	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
-	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
-	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
+	void Create_Contant_Buffer(D3D12Global& d3d, D3D12Resources& resources);
+	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources);
+	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
+	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
+	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
+	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
 
 	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources);
 

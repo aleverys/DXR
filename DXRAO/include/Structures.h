@@ -228,8 +228,17 @@ struct D3D12Global
 // DirectX RenderPass
 //--------------------------------------------------------------------------------------
 struct D3D12RenderGlobal {
+	//Root Signatures
 	std::map<string,ID3D12RootSignature*> signatures;
-	
+
+	//Complied Shaders 
+	std::map<string, ID3DBlob*> shaders;
+
+	//Vertex Input Layout
+	std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
+
+	//Pipline State Object
+	std::map<string, ID3D12PipelineState*> pipelineStates;
 };
 
 //--------------------------------------------------------------------------------------
