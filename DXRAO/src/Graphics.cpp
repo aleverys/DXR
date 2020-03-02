@@ -893,7 +893,7 @@ namespace D3D12Render {
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {
-		SAFE_RELEASE(d3dRender.pRootSignature);
+		//SAFE_RELEASE(d3dRender.pRootSignature);
 
 	}
 }

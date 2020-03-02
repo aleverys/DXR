@@ -93,7 +93,7 @@ public:
 		CloseHandle(d3d.fenceEvent);
 
 		DXR::Destroy(dxr);
-		D3D12Render::Destroy(d3dRender);
+		//D3D12Render::Destroy(d3dRender);
 		D3DResources::Destroy(resources);
 		D3DShaders::Destroy(shaderCompiler);
 		D3D12::Destroy(d3d);
