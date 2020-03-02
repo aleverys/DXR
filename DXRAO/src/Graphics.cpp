@@ -196,11 +196,12 @@ namespace D3DResources
 	*/
 	void Create_Vertex_Buffer(D3D12Global& d3d, D3D12Resources& resources, Model& model)
 	{
-		//Upload Data from CPU->GPU(Upload Heap)->GPU(Default Heap which is fast to read but can't be accessed by cpu)
 		UINT64 size = (UINT)model.vertices.size() * sizeof(Vertex);
 		ID3D12Resource* vertexBufferUploader = nullptr;
-
+		
+		//Upload Data from CPU->GPU(Upload Heap)->GPU(Default Heap which is fast to read but can't be accessed by cpu)
 		resources.vertexBuffer =CreateDefaultBuffer(d3d.device, d3d.cmdList, model.vertices.data(),size, vertexBufferUploader);
+		
 		// Initialize the vertex buffer view
 		resources.vertexBufferView.BufferLocation = resources.vertexBuffer->GetGPUVirtualAddress();
 		resources.vertexBufferView.StrideInBytes = sizeof(Vertex);

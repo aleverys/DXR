@@ -34,21 +34,21 @@ struct ConfigInfo
 struct Vertex
 {
 	DirectX::XMFLOAT3 position;
+	DirectX::XMFLOAT3 normal;
 	DirectX::XMFLOAT2 uv;
-
+	
 	bool operator==(const Vertex &v) const 
 	{
-		if (CompareVector3WithEpsilon(position, v.position)) 
-		{
-			if (CompareVector2WithEpsilon(uv, v.uv)) return true;
-			return true;
-		}
-		return false;
+		if (!CompareVector3WithEpsilon(position, v.position)) return false;
+		if (!CompareVector3WithEpsilon(normal, v.normal)) return false;
+		if (!CompareVector2WithEpsilon(uv, v.uv)) return false;
+		return true;
 	}
 
 	Vertex& operator=(const Vertex& v) 
 	{
 		position = v.position;
+		normal = v.normal;
 		uv = v.uv;
 		return *this;
 	}
