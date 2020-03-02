@@ -16,9 +16,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Graphics.cpp" />
-    <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\Window.cpp" />
+    <ClCompile Include="src\Entrance.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Common.h">

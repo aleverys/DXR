@@ -139,31 +139,72 @@ namespace D3DResources
 		d3d.cmdList->ResourceBarrier(1, &barrier);
 	}
 
+	ID3D12Resource* CreateDefaultBuffer(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* cmdList,
+		const void* initData,
+		UINT64 byteSize,
+		ID3D12Resource* uploadBuffer)
+	{
+		ID3D12Resource* defaultBuffer;
+
+		// Create the actual default buffer resource.
+		HRESULT hr=device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(&defaultBuffer));
+		Utils::Validate(hr, L"Error: failed to create buffer in default heap!");
+
+		// In order to copy CPU memory data into our default buffer, we need to create
+		// an intermediate upload heap. 
+		hr = device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&uploadBuffer));
+		Utils::Validate(hr, L"Error: failed to create buffer in upload heap!");
+
+		// Describe the data we want to copy into the default buffer.
+		D3D12_SUBRESOURCE_DATA subResourceData = {};
+		subResourceData.pData = initData;
+		subResourceData.RowPitch = byteSize;
+		subResourceData.SlicePitch = subResourceData.RowPitch;
+
+		// Schedule to copy the data to the default buffer resource.  At a high level, the helper function UpdateSubresources
+		// will copy the CPU memory into the intermediate upload heap.  Then, using ID3D12CommandList::CopySubresourceRegion,
+		// the intermediate upload heap data will be copied to mBuffer.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer,
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+		UpdateSubresources<1>(cmdList, defaultBuffer, uploadBuffer, 0, 0, 1, &subResourceData);
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer,
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+		// Note: uploadBuffer has to be kept alive after the above function calls because
+		// the command list has not been executed yet that performs the actual copy.
+		// The caller can Release the uploadBuffer after it knows the copy has been executed.
+
+		return defaultBuffer;
+	}
+
 	/*
 	* Create the vertex buffer.
 	*/
 	void Create_Vertex_Buffer(D3D12Global& d3d, D3D12Resources& resources, Model& model)
 	{
-		// Create the vertex buffer resource
-		D3D12BufferCreateInfo info(((UINT)model.vertices.size() * sizeof(Vertex)), D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
-		Create_Buffer(d3d, info, &resources.vertexBuffer);
-#if NAME_D3D_RESOURCES
-		resources.vertexBuffer->SetName(L"Vertex Buffer");
-#endif
+		//Upload Data from CPU->GPU(Upload Heap)->GPU(Default Heap which is fast to read but can't be accessed by cpu)
+		UINT64 size = (UINT)model.vertices.size() * sizeof(Vertex);
+		ID3D12Resource* vertexBufferUploader = nullptr;
 
-		// Copy the vertex data to the vertex buffer
-		UINT8* pVertexDataBegin;
-		D3D12_RANGE readRange = {};
-		HRESULT hr = resources.vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
-		Utils::Validate(hr, L"Error: failed to map vertex buffer!");
-
-		memcpy(pVertexDataBegin, model.vertices.data(), info.size);
-		resources.vertexBuffer->Unmap(0, nullptr);
-
+		resources.vertexBuffer =CreateDefaultBuffer(d3d.device, d3d.cmdList, model.vertices.data(),size, vertexBufferUploader);
 		// Initialize the vertex buffer view
 		resources.vertexBufferView.BufferLocation = resources.vertexBuffer->GetGPUVirtualAddress();
 		resources.vertexBufferView.StrideInBytes = sizeof(Vertex);
-		resources.vertexBufferView.SizeInBytes = static_cast<UINT>(info.size);
+		resources.vertexBufferView.SizeInBytes = static_cast<UINT>(size);
 	}
 
 	/**
@@ -507,12 +548,11 @@ namespace D3D12
 #endif
 				break;
 			}
-
-			if (d3d.device == nullptr)
-			{
-				// Didn't find a device that supports ray tracing.
-				Utils::Validate(E_FAIL, L"Error: failed to create ray tracing device!");
-			}
+		}
+		if (d3d.device == nullptr)
+		{
+			// Didn't find a device that supports ray tracing.
+			Utils::Validate(E_FAIL, L"Error: failed to create ray tracing device!");
 		}
 	}
 
@@ -1358,7 +1398,7 @@ namespace DXR
 		desc.HitGroupTable.StartAddress = dxr.shaderTable->GetGPUVirtualAddress() + (dxr.shaderTableRecordSize * 2);
 		desc.HitGroupTable.SizeInBytes = dxr.shaderTableRecordSize;			// Only a single Hit program entry
 		desc.HitGroupTable.StrideInBytes = dxr.shaderTableRecordSize;
-
+		
 		desc.Width = d3d.width;
 		desc.Height = d3d.height;
 		desc.Depth = 1;
