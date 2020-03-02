@@ -20,4 +20,5 @@
 *.iobj
 *.ipdb
 *.zip
+*.exe
 /DXRAO/intermediate
