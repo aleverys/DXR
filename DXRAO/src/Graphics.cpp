@@ -451,7 +451,7 @@ namespace D3DResources
 		SAFE_RELEASE(resources.materialCB);
 		SAFE_RELEASE(resources.rtvHeap);
 		SAFE_RELEASE(resources.dsvHeap);
-		SAFE_RELEASE(resources.dxRenderDescriptorHeap);
+		SAFE_RELEASE(resources.dxBasePassRenderDescriptorHeap);
 		SAFE_RELEASE(resources.dxrDescriptorHeap);
 		SAFE_RELEASE(resources.texture);
 		SAFE_RELEASE(resources.textureUploadResource);

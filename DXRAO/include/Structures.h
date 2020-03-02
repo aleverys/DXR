@@ -88,6 +88,14 @@ struct ViewCB
 	DirectX::XMFLOAT2 resolution = DirectX::XMFLOAT2(1280, 720);
 };
 
+struct BasePassCB {
+	DirectX::XMMATRIX viewProj;
+};
+
+struct BasePassPerObjectCB {
+	DirectX::XMMATRIX world;
+};
+
 //--------------------------------------------------------------------------------------
 // D3D12
 //--------------------------------------------------------------------------------------
@@ -169,7 +177,6 @@ struct D3D12Resources
 
 	ID3D12DescriptorHeap*							rtvHeap = nullptr;
 	ID3D12DescriptorHeap*							dsvHeap = nullptr;
-	ID3D12DescriptorHeap*							dxRenderDescriptorHeap = nullptr;
 	ID3D12DescriptorHeap*							dxrDescriptorHeap = nullptr;
 
 	ID3D12Resource*									texture = nullptr;
@@ -181,6 +188,18 @@ struct D3D12Resources
 	float											rotationOffset = 0;
 	DirectX::XMFLOAT3								eyeAngle;
 	DirectX::XMFLOAT3								eyePosition;
+
+	//------------------------------D3D Rasterization Render BasePass---------------------------------------
+	ID3D12Resource*									basePassCB = nullptr;
+	BasePassCB										basePassCBData;
+	UINT8*											basePassCBStart = nullptr;
+
+	ID3D12Resource*									basePassPerObjCB = nullptr;
+	BasePassPerObjectCB								basePassPerObjCBData;
+	UINT8*											basePassPerObjCBStart = nullptr;
+
+	ID3D12DescriptorHeap*							dxBasePassRenderDescriptorHeap = nullptr;
+
 };
 
 struct D3D12Global
