@@ -5,6 +5,7 @@
 #endif
 
 #include <Windows.h>
+#include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 

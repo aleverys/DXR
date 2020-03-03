@@ -54,7 +54,13 @@ public:
 		D3DResources::Create_Material_CB(d3d, resources, material);
 
 		// Create DirectX render resources
-		
+		D3D12Render::Create_Contant_Buffer(d3d, resources);
+		D3D12Render::Build_Descriptor_Heaps(d3d, resources);
+		D3D12Render::Build_Root_Signature(d3d, d3dRender);
+		D3D12Render::Build_Shaders(d3d, d3dRender);
+		D3D12Render::Build_Input_Layout(d3d, d3dRender);
+		D3D12Render::Build_Pipeline_State(d3d, d3dRender);
+
 		// Create DXR specific resources
 		DXR::Create_Bottom_Level_AS(d3d, dxr, resources, model);
 		DXR::Create_Top_Level_AS(d3d, dxr, resources);
@@ -81,6 +87,8 @@ public:
 
 	void Render()
 	{
+		D3D12Render::DrawBasePass(d3d, d3dRender, resources, model);
+
 		DXR::Build_Command_List(d3d, dxr, resources);
 		D3D12::Present(d3d);
 		D3D12::MoveToNextFrame(d3d);
@@ -93,7 +101,7 @@ public:
 		CloseHandle(d3d.fenceEvent);
 
 		DXR::Destroy(dxr);
-		//D3D12Render::Destroy(d3dRender);
+		D3D12Render::Destroy(d3dRender);
 		D3DResources::Destroy(resources);
 		D3DShaders::Destroy(shaderCompiler);
 		D3D12::Destroy(d3d);

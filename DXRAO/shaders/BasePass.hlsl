@@ -27,5 +27,5 @@ VertexOut vs(VertexIn in){
 }
 
 float4 ps(VertexOut in) : SV_Target {
-    return in.posH;
+    return float4(0.f,0.f,0.f,1.f);
 }
