@@ -4,6 +4,8 @@
 #define WIN32_LEAN_AND_MEAN			// Exclude rarely-used items from Windows headers.
 #endif
 
+#define raytracing
+
 #include <Windows.h>
 #include <DirectXColors.h>
 #include <DirectXMath.h>

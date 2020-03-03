@@ -428,20 +428,22 @@ namespace D3DResources
 		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 		invView = XMMatrixInverse(NULL, view);
 
+#ifdef raytracing
 		//Update DXR
 		resources.viewCBData.view = XMMatrixTranspose(invView);
 		resources.viewCBData.viewOriginAndTanHalfFovY = XMFLOAT4(eye.x, eye.y, eye.z, tanf(fov * 0.5f));
 		resources.viewCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
-
+#else	
 		//Update BasePass
-		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov,aspect,1.0f,1000.0f);
+		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov,aspect,10.0f,1000.0f);
 		XMMATRIX world= XMMatrixIdentity();
-		
+	
 		resources.basePassCBData.viewProj = view * proj;
 		resources.basePassPerObjCBData.world = world;
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
+#endif
 	}
 
 	/**
@@ -644,7 +646,6 @@ namespace D3D12
 			{
 				continue;	// Don't select the Basic Render Driver adapter.
 			}
-
 			if (SUCCEEDED(D3D12CreateDevice(d3d.adapter, D3D_FEATURE_LEVEL_12_1, _uuidof(ID3D12Device5), (void**)&d3d.device)))
 			{
 				// Check if the device supports ray tracing.
@@ -664,6 +665,7 @@ namespace D3D12
 				break;
 			}
 		}
+		
 		if (d3d.device == nullptr)
 		{
 			// Didn't find a device that supports ray tracing.
@@ -926,9 +928,8 @@ namespace D3D12Render {
 	*/
 	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources) {
 		// Describe the CBV/SRV/UAV heap
-		// Need 2 entries:
-		// 1 CBV for the ViewCB
-		// 1 CBV for the MaterialCB
+		// Need 2 entries
+
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 		desc.NumDescriptors = 2;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -944,14 +945,14 @@ namespace D3D12Render {
 #if NAME_D3D_RESOURCES
 		resources.dxBasePassRenderDescriptorHeap->SetName(L"DX BasePass Descriptor Heap");
 #endif
-		// Create the ViewCB CBV
+		// Create the basePassCB CBV
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.basePassCB));
 		cbvDesc.BufferLocation = resources.basePassCB->GetGPUVirtualAddress();
 
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
 
-		// Create the MaterialCB CBV
+		// Create the basePassCBObj CBV
 		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.basePassPerObjCB));
 		cbvDesc.BufferLocation = resources.basePassPerObjCB->GetGPUVirtualAddress();
 
@@ -991,7 +992,6 @@ namespace D3D12Render {
 #if NAME_D3D_RESOURCES
 		d3dRender.signatures["basepass"]->SetName(L"DX BasePass Root Signature");
 #endif
-
 	}
 
 	/**
@@ -1081,8 +1081,8 @@ namespace D3D12Render {
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandle.ptr += (size_t)d3d.frameIndex * (size_t)resources.rtvDescSize;
-		commandList->ClearRenderTargetView(rtvHandle, Colors::Blue, 0,nullptr);
-		commandList->OMSetRenderTargets(0, nullptr, false, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0,nullptr);
+		commandList->OMSetRenderTargets(1, &rtvHandle, true,&resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 		//Set PSO
 		commandList->SetPipelineState(d3dRender.pipelineStates["basepass"]);
