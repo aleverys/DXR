@@ -435,7 +435,14 @@ namespace D3DResources
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
 
 		//Update BasePass
-
+		float aspect = (float)d3d.width / (float)d3d.height;
+		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov,aspect,1.0f,1000.0f);
+		XMMATRIX world= XMMatrixIdentity();
+		
+		resources.basePassCBData.viewProj = resources.viewCBData.view * proj;
+		resources.basePassPerObjCBData.world = world;
+		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
+		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
 	}
 
 	/**
