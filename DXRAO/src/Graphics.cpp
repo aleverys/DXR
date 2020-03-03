@@ -435,11 +435,10 @@ namespace D3DResources
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
 
 		//Update BasePass
-		float aspect = (float)d3d.width / (float)d3d.height;
 		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov,aspect,1.0f,1000.0f);
 		XMMATRIX world= XMMatrixIdentity();
 		
-		resources.basePassCBData.viewProj = resources.viewCBData.view * proj;
+		resources.basePassCBData.viewProj = view * proj;
 		resources.basePassPerObjCBData.world = world;
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
@@ -1078,24 +1077,29 @@ namespace D3D12Render {
 			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 		//Set RenderTargets
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
+			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandle.ptr += (size_t)d3d.frameIndex * (size_t)resources.rtvDescSize;
-		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0,nullptr);
-		commandList->OMSetRenderTargets(0, nullptr, false, &rtvHandle);
+		commandList->ClearRenderTargetView(rtvHandle, Colors::Blue, 0,nullptr);
+		commandList->OMSetRenderTargets(0, nullptr, false, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 		//Set PSO
 		commandList->SetPipelineState(d3dRender.pipelineStates["basepass"]);
 
+		//Set IA
+		commandList->IASetVertexBuffers(0, 1, &resources.vertexBufferView);
+		commandList->IASetIndexBuffer(&resources.indexBufferView);
+		commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 		//Draw
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		commandList->DrawInstanced(model.vertices.size(),1,0,0);
+		commandList->DrawIndexedInstanced(model.vertices.size(),1,0,0,0);
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 		//Convert DepthStencil Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
-			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+			D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {

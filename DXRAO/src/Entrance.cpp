@@ -62,6 +62,7 @@ public:
 		D3D12Render::Build_Pipeline_State(d3d, d3dRender);
 
 		// Create DXR specific resources
+		/*
 		DXR::Create_Bottom_Level_AS(d3d, dxr, resources, model);
 		DXR::Create_Top_Level_AS(d3d, dxr, resources);
 		DXR::Create_DXR_Output(d3d, resources);
@@ -71,7 +72,7 @@ public:
 		DXR::Create_Closest_Hit_Program(d3d, dxr, shaderCompiler);
 		DXR::Create_Pipeline_State_Object(d3d, dxr);
 		DXR::Create_Shader_Table(d3d, dxr, resources);
-
+		*/
 		d3d.cmdList->Close();
 		ID3D12CommandList* pGraphicsList = { d3d.cmdList };
 		d3d.cmdQueue->ExecuteCommandLists(1, &pGraphicsList);
@@ -88,8 +89,9 @@ public:
 	void Render()
 	{
 		D3D12Render::DrawBasePass(d3d, d3dRender, resources, model);
-
-		DXR::Build_Command_List(d3d, dxr, resources);
+		D3D12::Submit_CmdList(d3d);
+		D3D12::WaitForGPU(d3d);
+		//DXR::Build_Command_List(d3d, dxr, resources);
 		D3D12::Present(d3d);
 		D3D12::MoveToNextFrame(d3d);
 		D3D12::Reset_CommandList(d3d);

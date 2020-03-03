@@ -23,11 +23,14 @@ VertexOut vs(VertexIn v)
     
     float4 posWorld = mul(float4(v.PosL,1.0f),world);
     res.PosH = mul(posWorld,viewProj);
-
+    res.PosH.y=0.5;
+    res.PosH.z=1;
     return res;
 }
 
 float4 ps(VertexOut v) : SV_Target 
 {
-    return float4(0.f,0.f,0.f,1.f);
+    float depth=v.PosH.z;
+    //depth=saturate(depth);
+    return float4(0.5,0.2,0.3,1.f);
 }
