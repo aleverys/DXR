@@ -561,12 +561,11 @@ namespace D3DShaders
 		Utils::Validate(hr, L"Failed to create DxcLibrary!");
 	}
 
-	void Compile_Shader(
+	ID3DBlob* Compile_Shader(
 		const std::wstring& filename,
 		const D3D_SHADER_MACRO* defines,
 		const std::string& entrypoint,
-		const std::string& target,
-		ID3DBlob** byteCode)
+		const std::string& target)
 	{
 		UINT compileFlags = 0;
 #if defined(DEBUG) || defined(_DEBUG)  
@@ -575,16 +574,18 @@ namespace D3DShaders
 
 		HRESULT hr = S_OK;
 
-		*byteCode = nullptr;
+		ID3DBlob* byteCode = nullptr;
 
 		ComPtr<ID3DBlob> errors;
 		hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-			entrypoint.c_str(), target.c_str(), compileFlags, 0, byteCode, &errors);
+			entrypoint.c_str(), target.c_str(), compileFlags, 0, &byteCode, &errors);
 
 		if (errors != nullptr)
 			OutputDebugStringA((char*)errors->GetBufferPointer());
 
 		Utils::Validate(hr, L"Failed to Complier Shader!");
+
+		return byteCode;
 	}
 
 	/**
@@ -977,7 +978,7 @@ namespace D3D12Render {
 		D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
 		rootDesc.NumParameters = _countof(rootParams);
 		rootDesc.pParameters = rootParams;
-		rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+		rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 		// Create the root signature
 		d3dRender.signatures["basepass"] = D3D12::Create_Root_Signature(d3d, rootDesc);
@@ -992,14 +993,8 @@ namespace D3D12Render {
 	*/
 	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass
-		d3dRender.shaders["basepass_vs"] = nullptr;
-		ID3DBlob** byteCode = &(d3dRender.shaders["basepass_vs"]);
-		D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "vs", "vs_5_1", byteCode);
-
-		d3dRender.shaders["basepass_ps"] = nullptr;
-		byteCode = &(d3dRender.shaders["basepass_ps"]);
-		D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "ps", "vs_5_1", byteCode);
-
+		d3dRender.shaders["basepass_vs"]=D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "vs", "vs_5_1");
+		d3dRender.shaders["basepass_ps"]=D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "ps", "ps_5_1");
 	}
 
 	/**
@@ -1038,17 +1033,19 @@ namespace D3D12Render {
 
 		basePassPsoDesc.VS =
 		{
-			reinterpret_cast<BYTE*>(d3dRender.shaders["basepass_vs"]->GetBufferPointer(),
-			d3dRender.shaders["basepass_vs"]->GetBufferSize())
+			reinterpret_cast<BYTE*>(d3dRender.shaders["basepass_vs"]->GetBufferPointer()),
+			d3dRender.shaders["basepass_vs"]->GetBufferSize()
 		};
 
 		basePassPsoDesc.PS =
 		{
-			reinterpret_cast<BYTE*>(d3dRender.shaders["basepass_ps"]->GetBufferPointer(),
-			d3dRender.shaders["basepass_ps"]->GetBufferSize())
+			reinterpret_cast<BYTE*>(d3dRender.shaders["basepass_ps"]->GetBufferPointer()),
+			d3dRender.shaders["basepass_ps"]->GetBufferSize()
 		};
-		
-		HRESULT hr=d3d.device->CreateGraphicsPipelineState(&basePassPsoDesc, IID_PPV_ARGS(&d3dRender.pipelineStates["basepass"]));
+
+		ID3D12PipelineState* state=nullptr;
+		HRESULT hr=d3d.device->CreateGraphicsPipelineState(&basePassPsoDesc, IID_PPV_ARGS(&state));
+		d3dRender.pipelineStates["basepass"] = state;
 		Utils::Validate(hr, L"Error: failed to build BasePass PSO!");
 
 	}

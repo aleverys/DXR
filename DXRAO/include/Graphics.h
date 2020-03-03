@@ -49,6 +49,7 @@ namespace D3DShaders
 	void Init_Shader_Compiler(D3D12ShaderCompilerInfo &shaderCompiler);
 	void Compile_Shader(D3D12ShaderCompilerInfo &compilerInfo, RtProgram &program);
 	void Compile_Shader(D3D12ShaderCompilerInfo &compilerInfo, D3D12ShaderInfo &info, IDxcBlob** blob);
+	ID3DBlob* Compile_Shader(const std::wstring& filename,const D3D_SHADER_MACRO* defines,const std::string& entrypoint,const std::string& target);
 	void Destroy(D3D12ShaderCompilerInfo &shaderCompiler);
 }
 
