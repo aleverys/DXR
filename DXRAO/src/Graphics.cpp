@@ -314,7 +314,10 @@ namespace D3DResources
 
 		//Create DepthAndStencilView
 		d3d.device->CreateDepthStencilView(resources.depthStencilBuffer, &dsvDesc,resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
+		
+		//Transition State
+		d3d.cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
 
 	/**
@@ -1026,8 +1029,40 @@ namespace D3D12Render {
 
 	}
 
-	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources) {
+	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources, Model& model) {
+		auto& commandList = d3d.cmdList;
+		//Bind Root Signatures and Resources
+		ID3D12DescriptorHeap* descriptorHeaps[] = { resources.dxBasePassRenderDescriptorHeap };
+		commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+		commandList->SetGraphicsRootSignature(d3dRender.signatures["basepass"]);
+		commandList->SetGraphicsRootDescriptorTable(0, resources.dxBasePassRenderDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		
+		//Set ViewPort
+		D3D12_VIEWPORT viewPort= { 0.f,0.f,d3d.width,d3d.height,0.f,1.f };
+		D3D12_RECT scissorRect = { 0,0,d3d.width,d3d.height };
+		commandList->RSSetViewports(1, &viewPort);
+		commandList->RSSetScissorRects(1, &scissorRect);
 
+		//DepthStencil Buffer Write
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		commandList->ClearDepthStencilView(resources.dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+		//Set RenderTargets
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		rtvHandle.ptr += (size_t)d3d.frameIndex * (size_t)resources.rtvDescSize;
+		commandList->OMSetRenderTargets(0, nullptr, false, &rtvHandle);
+
+		//Set PSO
+		commandList->SetPipelineState(d3dRender.pipelineStates["basepass"]);
+
+		//Draw
+		commandList->DrawInstanced(model.vertices.size(),1,0,0);
+
+		//Convert DepthStencil Buffer Readable
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {
