@@ -1,20 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <FxCompile Include="shaders\ClosestHit.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\Common.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\Miss.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\RayGen.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="src\Graphics.cpp" />
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\Window.cpp" />
@@ -50,14 +36,49 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Shader">
-      <UniqueIdentifier>{415ebbe1-2ee6-4f1b-ac1d-54330a4a29a3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Include">
       <UniqueIdentifier>{fa63cc54-b919-4829-9ffb-93efc1096600}</UniqueIdentifier>
     </Filter>
     <Filter Include="Include\thirdparty">
       <UniqueIdentifier>{a8978e1c-55b7-488a-8cae-b2e29a6acc7a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{a625fe1f-b04b-46f5-827b-9f35b86deadc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EShaders">
+      <UniqueIdentifier>{d523fe98-fc0c-447c-a2fe-4c6f673f4340}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shaders\AoClosestHit.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\AoCommon.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\AoMiss.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\AoRayGen.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\BasePass.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\Random.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ClosestHit.hlsl">
+      <Filter>EShaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\Common.hlsl">
+      <Filter>EShaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\Miss.hlsl">
+      <Filter>EShaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\RayGen.hlsl">
+      <Filter>EShaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

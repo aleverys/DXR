@@ -11,6 +11,19 @@ struct RandomSequence
 	uint HaltonDimensionIndex;
 };
 
+float Rand(inout uint Seed)
+{
+	// Scale and Bias coefficients are taken from the Park-Miller RNG
+	const uint Scale = 48271;
+	const uint Bias = 0;
+	Seed = Seed * Scale + Bias;
+
+	// Map to significand and divide into [0, 1) range
+	float Result = float(Seed & 0x00FFFFFF);
+	Result /= float(0x01000000);
+	return Result;
+}
+
 bool RandomSequence_IsHalton(in RandomSequence RandSequence)
 {
 	return RandSequence.Type == 1;
@@ -143,19 +156,6 @@ float2 RandomSequence_GenerateSample2D(inout RandomSequence RandSequence, inout 
 	return Sample;
 }
 
-void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionSeed, uint TimeSeed)
-{
-	RandSequence.Type = 0;
-	RandSequence.PositionSeed = PositionSeed;
-	RandSequence.TimeSeed = TimeSeed;
-
-	// LCG
-	RandSequence.PseudoRandomSeed = RandInit(PositionSeed, TimeSeed);
-
-	// Halton
-	RandSequence.HaltonDimensionIndex = 0;
-}
-
 // TEA-based pseudo-random number generator
 uint RandInit(uint Seed0, uint Seed1)
 {
@@ -174,4 +174,17 @@ uint RandInit(uint Seed0, uint Seed1)
 	}
 
 	return Value.x;
+}
+
+void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionSeed, uint TimeSeed)
+{
+	RandSequence.Type = 0;
+	RandSequence.PositionSeed = PositionSeed;
+	RandSequence.TimeSeed = TimeSeed;
+
+	// LCG
+	RandSequence.PseudoRandomSeed = RandInit(PositionSeed, TimeSeed);
+
+	// Halton
+	RandSequence.HaltonDimensionIndex = 0;
 }
