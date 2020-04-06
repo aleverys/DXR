@@ -81,6 +81,7 @@ namespace D3D12Render {
 	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
 	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
 	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
+	void Build_Normal_Buffer(D3D12Global& d3d, D3D12Resources& resources);
 
 	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources,Model& model);
 

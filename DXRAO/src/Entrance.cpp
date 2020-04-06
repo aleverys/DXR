@@ -56,6 +56,7 @@ public:
 #ifndef raytracing
 		// Create DirectX render resources
 		D3D12Render::Create_Contant_Buffer(d3d, resources);
+		D3D12Render::Build_Normal_Buffer(d3d, resources);
 		D3D12Render::Build_Descriptor_Heaps(d3d, resources);
 		D3D12Render::Build_Root_Signature(d3d, d3dRender);
 		D3D12Render::Build_Shaders(d3d, d3dRender);

@@ -5,6 +5,7 @@
 #endif
 
 #define raytracing
+#undef raytracing
 
 #include <Windows.h>
 #include <DirectXColors.h>

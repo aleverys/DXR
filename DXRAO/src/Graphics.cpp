@@ -958,6 +958,38 @@ namespace D3D12Render {
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
+
+		//Create the noramlBuffer UAV
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+		handle.ptr += handleIncrement;
+		d3d.device->CreateUnorderedAccessView(resources.normalBuffer, nullptr, &uavDesc, handle);
+	}
+
+	/**
+	* Build Normal Buffer
+	*/
+	void Build_Normal_Buffer(D3D12Global& d3d, D3D12Resources& resources) {
+		D3D12_RESOURCE_DESC normalBufferDesc = {};
+		normalBufferDesc.Width = d3d.width;
+		normalBufferDesc.Height = d3d.height;
+		normalBufferDesc.MipLevels = 1;
+		normalBufferDesc.DepthOrArraySize = 1;
+		normalBufferDesc.SampleDesc.Count = 1;
+		normalBufferDesc.SampleDesc.Quality = 0;
+		normalBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		normalBufferDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		normalBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		normalBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;;
+
+		// Create the texture resource
+		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
+		Utils::Validate(hr, L"Error: failed to create texture!");
+#if NAME_D3D_RESOURCES
+		resources.texture->SetName(L"NORMAL_BUFFER");
+#endif
+
 	}
 
 	/**
@@ -965,14 +997,18 @@ namespace D3D12Render {
 	*/
 	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass Root_Signature
-		// Describe the ray generation root signature
-		D3D12_DESCRIPTOR_RANGE ranges[1];
+		D3D12_DESCRIPTOR_RANGE ranges[2];
 
 		ranges[0].BaseShaderRegister = 0;
 		ranges[0].NumDescriptors = 2;
 		ranges[0].RegisterSpace = 0;
 		ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 		ranges[0].OffsetInDescriptorsFromTableStart = 0;
+
+		ranges[1].BaseShaderRegister = 0;
+		ranges[1].NumDescriptors = 1;
+		ranges[1].RegisterSpace = 0;
+		ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 
 		D3D12_ROOT_PARAMETER param0 = {};
 		param0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;

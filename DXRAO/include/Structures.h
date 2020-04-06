@@ -200,6 +200,7 @@ struct D3D12Resources
 
 	ID3D12DescriptorHeap*							dxBasePassRenderDescriptorHeap = nullptr;
 
+	ID3D12Resource*									normalBuffer;
 };
 
 struct D3D12Global

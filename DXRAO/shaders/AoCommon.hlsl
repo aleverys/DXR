@@ -1,6 +1,7 @@
 #include"Random.hlsl"
 
 // ---[ Struct Defination]---
+#define PI 3.141592653
 
 struct HitInfo{
 	float4 hitPointPosition;
@@ -47,6 +48,8 @@ cbuffer ViewCB : register(b1)
 	float3 worldCameraOrigin;
 	//
 	uint stateFrameIndex;
+	//
+    float4x4 svPositionToTranslatedWorld;
 }
 
 // ---[ Resources ]---
@@ -154,7 +157,7 @@ void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float 
 //根据coord和depth 以及投影矩阵获取原来的相对于世界的位置
 float3 ReconstructWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
 {
-	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
+	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), svPositionToTranslatedWorld);
 	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
 	return TranslatedWorldPosition.xyz + worldCameraOrigin;
 }
@@ -162,7 +165,7 @@ float3 ReconstructWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
 //根据coord和depth 以及投影矩阵获取原来的相对于视角的位置
 float3 ReconstructTranslatedWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
 {
-	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
+	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), svPositionToTranslatedWorld);
 	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
 	return TranslatedWorldPosition.xyz;
 }

@@ -188,3 +188,4 @@ void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionS
 	// Halton
 	RandSequence.HaltonDimensionIndex = 0;
 }
+
