@@ -32,11 +32,11 @@ namespace D3DResources
 	void Create_Constant_Buffer(D3D12Global &d3d, ID3D12Resource** buffer, UINT64 size);
 	void Create_BackBuffer_RTV(D3D12Global &d3d, D3D12Resources &resources);
 	void Create_DepthStencilBuffer_DSV(D3D12Global& d3d, D3D12Resources& resources);
+	void Create_RayConfig_CB(D3D12Global& d3d, D3D12Resources& resources, const Material& material);
 	void Create_View_CB(D3D12Global &d3d, D3D12Resources &resources);
-	void Create_Material_CB(D3D12Global &d3d, D3D12Resources &resources, const Material &material);
 	void Create_RTV_Descriptor_Heaps(D3D12Global &d3d, D3D12Resources &resources);
 	void Create_DSV_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources);
-		
+	
 	void Update_View_CB(D3D12Global &d3d, D3D12Resources &resources);
 
 	void Upload_Texture(D3D12Global &d3d, ID3D12Resource* destResource, ID3D12Resource* srcResource, const TextureInfo &texture);

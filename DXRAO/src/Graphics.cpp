@@ -320,6 +320,27 @@ namespace D3DResources
 	}
 
 	/**
+	* Create and initialize the rayconfig constant buffer.
+	*/
+	void Create_RayConfig_CB(D3D12Global& d3d, D3D12Resources& resources, const Material& material)
+	{
+		Create_Constant_Buffer(d3d, &resources.rayConfigCB, sizeof(RayConfig));
+#if NAME_D3D_RESOURCES
+		resources.rayConfigCB->SetName(L"RayConfig Constant Buffer");
+#endif
+		HRESULT hr = resources.rayConfigCB->Map(0, nullptr, reinterpret_cast<void**>(&resources.rayConfigCBCBStart));
+		Utils::Validate(hr, L"Error: failed to map Material constant buffer!");
+
+		//Init RayConfig
+		resources.rayConfigCBCBData.intensity = 0.5;
+		resources.rayConfigCBCBData.maxNormalBias = 0;
+		resources.rayConfigCBCBData.maxRayDistance = 200;
+		resources.rayConfigCBCBData.samplesPerPixel = 1;
+
+		memcpy(resources.rayConfigCBCBStart, &resources.rayConfigCBCBData, sizeof(resources.rayConfigCBCBData));
+	}
+
+	/**
 	* Create and initialize the view constant buffer.
 	*/
 	void Create_View_CB(D3D12Global& d3d, D3D12Resources& resources)
@@ -333,24 +354,6 @@ namespace D3DResources
 		Utils::Validate(hr, L"Error: failed to map View constant buffer!");
 
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
-	}
-
-	/**
-	* Create and initialize the material constant buffer.
-	*/
-	void Create_Material_CB(D3D12Global& d3d, D3D12Resources& resources, const Material& material)
-	{
-		Create_Constant_Buffer(d3d, &resources.materialCB, sizeof(MaterialCB));
-#if NAME_D3D_RESOURCES
-		resources.materialCB->SetName(L"Material Constant Buffer");
-#endif
-
-		resources.materialCBData.resolution = XMFLOAT4(material.textureResolution, 0.f, 0.f, 0.f);
-
-		HRESULT hr = resources.materialCB->Map(0, nullptr, reinterpret_cast<void**>(&resources.materialCBStart));
-		Utils::Validate(hr, L"Error: failed to map Material constant buffer!");
-
-		memcpy(resources.materialCBStart, &resources.materialCBData, sizeof(resources.materialCBData));
 	}
 
 	/**
@@ -427,26 +430,19 @@ namespace D3DResources
 		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 		invView = XMMatrixInverse(NULL, view);
 
-#ifdef raytracing
-		//Update DXR
-		resources.viewCBData.view = XMMatrixTranspose(invView);
-		resources.viewCBData.viewOriginAndTanHalfFovY = XMFLOAT4(eye.x, eye.y, eye.z, tanf(fov * 0.5f));
-		resources.viewCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
-		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
-#else	
 		//Update BasePass
-		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov,aspect,10.0f,1000.0f);
-		XMMATRIX world= XMMatrixIdentity();
-		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL,world));
+		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, aspect, 10.0f, 1000.0f);
 		
-		resources.basePassCBData.viewProj = view * proj;
-		resources.basePassPerObjCBData.world = world;
-		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
 
-		resources.basePassPerObjCBData.worldTransposeInverse = worldTransposeInverse;
+		resources.basePassCBData.viewProj = view * proj;
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
-		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
-#endif
+
+		//Update DXR
+		//resources.viewCBData.view = XMMatrixTranspose(invView);
+		//resources.viewCBData.viewOriginAndTanHalfFovY = XMFLOAT4(eye.x, eye.y, eye.z, tanf(fov * 0.5f));
+		//resources.viewCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
+
+		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
 	}
 
 	/**
@@ -454,10 +450,10 @@ namespace D3DResources
 	 */
 	void Destroy(D3D12Resources& resources)
 	{
+		if (resources.rayConfigCB) resources.rayConfigCB->Unmap(0, nullptr);
+		if (resources.rayConfigCBCBStart) resources.rayConfigCBCBStart = nullptr;
 		if (resources.viewCB) resources.viewCB->Unmap(0, nullptr);
 		if (resources.viewCBStart) resources.viewCBStart = nullptr;
-		if (resources.materialCB) resources.materialCB->Unmap(0, nullptr);
-		if (resources.materialCBStart) resources.materialCBStart = nullptr;
 
 		if (resources.basePassCB) resources.basePassCB->Unmap(0, nullptr);
 		if (resources.basePassCBStart) resources.basePassCBStart = nullptr;
@@ -469,8 +465,8 @@ namespace D3DResources
 		SAFE_RELEASE(resources.vertexBuffer);
 		SAFE_RELEASE(resources.vertexIntermediateBuffer);
 		SAFE_RELEASE(resources.indexBuffer);
+		SAFE_RELEASE(resources.rayConfigCB);
 		SAFE_RELEASE(resources.viewCB);
-		SAFE_RELEASE(resources.materialCB);
 		SAFE_RELEASE(resources.rtvHeap);
 		SAFE_RELEASE(resources.dsvHeap);
 		SAFE_RELEASE(resources.dxBasePassRenderDescriptorHeap);
@@ -480,6 +476,7 @@ namespace D3DResources
 
 		SAFE_RELEASE(resources.basePassCB);
 		SAFE_RELEASE(resources.basePassPerObjCB);
+		SAFE_RELEASE(resources.normalBuffer);
 	}
 }
 
@@ -923,6 +920,13 @@ namespace D3D12Render {
 
 		hr = resources.basePassPerObjCB->Map(0, nullptr, reinterpret_cast<void**>(&resources.basePassPerObjCBStart));
 		Utils::Validate(hr, L"Error: failed to map basepass perobj constant buffer!");
+
+		XMMATRIX world = XMMatrixIdentity();
+		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
+		resources.basePassPerObjCBData.world = world;
+		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
+		resources.basePassPerObjCBData.worldTransposeInverse = worldTransposeInverse;
+
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
 	}
 
@@ -1625,7 +1629,6 @@ namespace DXR
 		// 1 SRV for the Scene BVH
 		// 1 SRV for the index buffer
 		// 1 SRV for the vertex buffer
-		// 1 SRV for the texture
 		// 1 SRV for the normal buffer
 		// 1 SRV for the depth buffer
 
@@ -1644,21 +1647,20 @@ namespace DXR
 #if NAME_D3D_RESOURCES
 		resources.dxrDescriptorHeap->SetName(L"DXR Descriptor Heap");
 #endif
-
-		// Create the ViewCB CBV
+		// Create the RayConfig CBV
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.viewCBData));
-		cbvDesc.BufferLocation = resources.viewCB->GetGPUVirtualAddress();
-
-		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
-
-		// Create the MaterialCB CBV
-		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.materialCBData));
-		cbvDesc.BufferLocation = resources.materialCB->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.rayConfigCBCBData));
+		cbvDesc.BufferLocation = resources.rayConfigCB->GetGPUVirtualAddress();
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
 
+		// Create the ViewCB CBV
+		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.viewCBData));
+		cbvDesc.BufferLocation = resources.viewCB->GetGPUVirtualAddress();
+
+		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
+		
 		// Create the DXR output buffer UAV
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
@@ -1702,17 +1704,6 @@ namespace DXR
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.vertexBuffer, &vertexSRVDesc, handle);
 
-		// Create the material texture SRV
-		D3D12_SHADER_RESOURCE_VIEW_DESC textureSRVDesc = {};
-		textureSRVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		textureSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		textureSRVDesc.Texture2D.MipLevels = 1;
-		textureSRVDesc.Texture2D.MostDetailedMip = 0;
-		textureSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-		handle.ptr += handleIncrement;
-		d3d.device->CreateShaderResourceView(resources.texture, &textureSRVDesc, handle);
-
 		// Create the normalBuffer SRV
 		D3D12_SHADER_RESOURCE_VIEW_DESC normalBufferSRVDesc = {};
 		normalBufferSRVDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
@@ -1735,7 +1726,7 @@ namespace DXR
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.depthStencilBuffer, &depthBufferSRVDesc, handle);
 
-		//
+		//Create 
 	}
 
 	/**

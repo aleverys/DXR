@@ -76,16 +76,21 @@ struct TextureInfo
 	int offset = 0;
 };
 
-struct MaterialCB 
-{
-	DirectX::XMFLOAT4 resolution;
+struct RayConfig {
+	unsigned int samplesPerPixel;
+	float maxRayDistance;
+	float intensity;
+	float maxNormalBias;
 };
 
 struct ViewCB
 {
-	DirectX::XMMATRIX view = DirectX::XMMatrixIdentity();
-	DirectX::XMFLOAT4 viewOriginAndTanHalfFovY = DirectX::XMFLOAT4(0, 0.f, 0.f, 0.f);
-	DirectX::XMFLOAT2 resolution = DirectX::XMFLOAT2(1280, 720);
+	DirectX::XMFLOAT4 bufferSizeAndInvSize;
+	DirectX::XMFLOAT3 translatedWorldCameraOrigin;
+	float  padding01;
+	DirectX::XMFLOAT3 worldCameraOrigin;
+	unsigned int stateFrameIndex;
+	DirectX::XMMATRIX svPositionToTranslatedWorld;
 };
 
 struct BasePassCB {
@@ -169,13 +174,14 @@ struct D3D12Resources
 	ID3D12Resource*									indexBuffer = nullptr;
 	D3D12_INDEX_BUFFER_VIEW							indexBufferView;
 	
+
+	ID3D12Resource* rayConfigCB = nullptr;
+	RayConfig										rayConfigCBCBData;
+	UINT8* rayConfigCBCBStart = nullptr;
+
 	ID3D12Resource*									viewCB = nullptr;
 	ViewCB											viewCBData;
 	UINT8*											viewCBStart = nullptr;
-
-	ID3D12Resource*									materialCB = nullptr;
-	MaterialCB										materialCBData;	
-	UINT8*											materialCBStart = nullptr;
 
 	ID3D12DescriptorHeap*							rtvHeap = nullptr;
 	ID3D12DescriptorHeap*							dsvHeap = nullptr;
