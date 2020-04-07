@@ -56,12 +56,12 @@ public:
 #ifndef raytracing
 		// Create DirectX render resources
 		D3D12Render::Create_Contant_Buffer(d3d, resources);
-		D3D12Render::Build_Normal_Buffer(d3d, resources);
-		D3D12Render::Build_Descriptor_Heaps(d3d, resources);
-		D3D12Render::Build_Root_Signature(d3d, d3dRender);
-		D3D12Render::Build_Shaders(d3d, d3dRender);
-		D3D12Render::Build_Input_Layout(d3d, d3dRender);
-		D3D12Render::Build_Pipeline_State(d3d, d3dRender);
+		D3D12Render::Create_Normal_Buffer(d3d, resources);
+		D3D12Render::Create_Descriptor_Heaps(d3d, resources);
+		D3D12Render::Create_Root_Signature(d3d, d3dRender);
+		D3D12Render::Create_Shaders(d3d, d3dRender);
+		D3D12Render::Create_Input_Layout(d3d, d3dRender);
+		D3D12Render::Create_Pipeline_State(d3d, d3dRender);
 
 		// Create DXR specific resources
 #else
@@ -75,7 +75,6 @@ public:
 		DXR::Create_Pipeline_State_Object(d3d, dxr);
 		DXR::Create_Shader_Table(d3d, dxr, resources);
 #endif
-
 		d3d.cmdList->Close();
 		ID3D12CommandList* pGraphicsList = { d3d.cmdList };
 		d3d.cmdQueue->ExecuteCommandLists(1, &pGraphicsList);

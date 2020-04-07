@@ -86,7 +86,6 @@ namespace D3DResources
 #if NAME_D3D_RESOURCES
 		resources.textureUploadResource->SetName(L"Texture Upload Buffer");
 #endif
-
 		// Upload the texture to the GPU
 		Upload_Texture(d3d, resources.texture, resources.textureUploadResource, texture);
 	}
@@ -442,7 +441,7 @@ namespace D3DResources
 		
 		resources.basePassCBData.viewProj = view * proj;
 		resources.basePassPerObjCBData.world = world;
-		resources.basePassPerObjCBData.resolution = DirectX::XMFLOAT2(1280, 720);
+		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
 
 		resources.basePassPerObjCBData.worldTransposeInverse = worldTransposeInverse;
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
@@ -930,7 +929,7 @@ namespace D3D12Render {
 	/**
 	*  Build Constant Buffer Descriptor Heaps
 	*/
-	void Build_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources) {
+	void Create_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources) {
 		// Describe the CBV/SRV/UAV heap
 		// Need 2 entries
 
@@ -974,7 +973,7 @@ namespace D3D12Render {
 	/**
 	* Build Normal Buffer
 	*/
-	void Build_Normal_Buffer(D3D12Global& d3d, D3D12Resources& resources) {
+	void Create_Normal_Buffer(D3D12Global& d3d, D3D12Resources& resources) {
 		D3D12_RESOURCE_DESC normalBufferDesc = {};
 		normalBufferDesc.Width = d3d.width;
 		normalBufferDesc.Height = d3d.height;
@@ -999,7 +998,7 @@ namespace D3D12Render {
 	/**
 	* Build RootSignature
 	*/
-	void Build_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+	void Create_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass Root_Signature
 		D3D12_DESCRIPTOR_RANGE ranges[2];
 
@@ -1038,7 +1037,7 @@ namespace D3D12Render {
 	/**
 	* Build Vs and Ps Shader
 	*/
-	void Build_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+	void Create_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass
 		d3dRender.shaders["basepass_vs"]=D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "vs", "vs_5_1");
 		d3dRender.shaders["basepass_ps"]=D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "ps", "ps_5_1");
@@ -1047,7 +1046,7 @@ namespace D3D12Render {
 	/**
 	* Build Vertex Input Layout
 	*/
-	void Build_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+	void Create_Input_Layout(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		d3dRender.inputLayout =
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -1059,7 +1058,7 @@ namespace D3D12Render {
 	/**
 	* Build Pipeline
 	*/
-	void Build_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
+	void Create_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC basePassPsoDesc;
 
@@ -1627,6 +1626,9 @@ namespace DXR
 		// 1 SRV for the index buffer
 		// 1 SRV for the vertex buffer
 		// 1 SRV for the texture
+		// 1 SRV for the normal buffer
+		// 1 SRV for the depth buffer
+
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 		desc.NumDescriptors = 7;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -1710,6 +1712,30 @@ namespace DXR
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.texture, &textureSRVDesc, handle);
+
+		// Create the normalBuffer SRV
+		D3D12_SHADER_RESOURCE_VIEW_DESC normalBufferSRVDesc = {};
+		normalBufferSRVDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		normalBufferSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		normalBufferSRVDesc.Texture2D.MipLevels = 1;
+		normalBufferSRVDesc.Texture2D.MostDetailedMip = 0;
+		normalBufferSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		handle.ptr += handleIncrement;
+		d3d.device->CreateShaderResourceView(resources.normalBuffer, &normalBufferSRVDesc, handle);
+		
+		// Create the depthbuffer SRV
+		D3D12_SHADER_RESOURCE_VIEW_DESC depthBufferSRVDesc = {};
+		depthBufferSRVDesc.Format=DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depthBufferSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		depthBufferSRVDesc.Texture2D.MipLevels = 1;
+		depthBufferSRVDesc.Texture2D.MostDetailedMip = 0;
+		depthBufferSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		handle.ptr += handleIncrement;
+		d3d.device->CreateShaderResourceView(resources.depthStencilBuffer, &depthBufferSRVDesc, handle);
+
+		//
 	}
 
 	/**
