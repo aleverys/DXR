@@ -50,8 +50,8 @@ public:
 		D3DResources::Create_Vertex_Buffer(d3d, resources, model);
 		D3DResources::Create_Index_Buffer(d3d, resources, model);
 		D3DResources::Create_Texture(d3d, resources, material);
-		D3DResources::Create_View_CB(d3d, resources);
 		D3DResources::Create_RayConfig_CB(d3d, resources, material);
+		D3DResources::Create_View_CB(d3d, resources);
 
 		// Create DirectX render resources
 		D3D12Render::Create_Contant_Buffer(d3d, resources);

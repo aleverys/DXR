@@ -329,7 +329,7 @@ namespace D3DResources
 		resources.rayConfigCB->SetName(L"RayConfig Constant Buffer");
 #endif
 		HRESULT hr = resources.rayConfigCB->Map(0, nullptr, reinterpret_cast<void**>(&resources.rayConfigCBCBStart));
-		Utils::Validate(hr, L"Error: failed to map Material constant buffer!");
+		Utils::Validate(hr, L"Error: failed to map RayConfig constant buffer!");
 
 		//Init RayConfig
 		resources.rayConfigCBCBData.intensity = 0.5;
@@ -1622,9 +1622,9 @@ namespace DXR
 	void Create_Descriptor_Heaps(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources, const Model& model)
 	{
 		// Describe the CBV/SRV/UAV heap
-		// Need 7 entries:
+		// Need 8 entries:
+		// 1 CBV for the RayConfigCB
 		// 1 CBV for the ViewCB
-		// 1 CBV for the MaterialCB
 		// 1 UAV for the RT output
 		// 1 SRV for the Scene BVH
 		// 1 SRV for the index buffer
@@ -1633,7 +1633,7 @@ namespace DXR
 		// 1 SRV for the depth buffer
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.NumDescriptors = 7;
+		desc.NumDescriptors = 8;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1652,13 +1652,13 @@ namespace DXR
 		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.rayConfigCBCBData));
 		cbvDesc.BufferLocation = resources.rayConfigCB->GetGPUVirtualAddress();
 
-		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
 
 		// Create the ViewCB CBV
 		cbvDesc.SizeInBytes = ALIGN(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, sizeof(resources.viewCBData));
 		cbvDesc.BufferLocation = resources.viewCB->GetGPUVirtualAddress();
 
+		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
 		
 		// Create the DXR output buffer UAV
@@ -1725,8 +1725,6 @@ namespace DXR
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.depthStencilBuffer, &depthBufferSRVDesc, handle);
-
-		//Create 
 	}
 
 	/**
