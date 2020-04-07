@@ -17,7 +17,7 @@ cbuffer BassPassCB : register(b0) {
 cbuffer BassPassPerObjectCB : register(b1) {
     float4x4 world;
     float4x4 worldTransposeInverse;
-    float2 dimision;
+    float2 resolution;
 };
 
 RWTexture2D<float4> normalBuffer : register(u0);
@@ -37,7 +37,7 @@ VertexOut vs(VertexIn v)
 
 float4 ps(VertexOut v) : SV_Target 
 {
-    uint2 positionInPixel=uint2(PosH.x*(float)dimision.x,PosH.y*(float)dimision.y);
+    uint2 positionInPixel=uint2(PosH.x*(float)resolution.x,PosH.y*(float)resolution.y);
     float3 normal=normalize(v.Normal.xyz);
     normalBuffer[positionInPixel]=float4(normal,0.f);
     return float4(normal,1.0f);

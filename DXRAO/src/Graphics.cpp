@@ -438,9 +438,13 @@ namespace D3DResources
 		//Update BasePass
 		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov,aspect,10.0f,1000.0f);
 		XMMATRIX world= XMMatrixIdentity();
-	
+		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL,world));
+		
 		resources.basePassCBData.viewProj = view * proj;
 		resources.basePassPerObjCBData.world = world;
+		resources.basePassPerObjCBData.resolution = DirectX::XMFLOAT2(1280, 720);
+
+		resources.basePassPerObjCBData.worldTransposeInverse = worldTransposeInverse;
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
 #endif
@@ -984,7 +988,7 @@ namespace D3D12Render {
 		normalBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;;
 
 		// Create the texture resource
-		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
+		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
 		Utils::Validate(hr, L"Error: failed to create texture!");
 #if NAME_D3D_RESOURCES
 		resources.texture->SetName(L"NORMAL_BUFFER");
@@ -1009,6 +1013,7 @@ namespace D3D12Render {
 		ranges[1].NumDescriptors = 1;
 		ranges[1].RegisterSpace = 0;
 		ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		ranges[1].OffsetInDescriptorsFromTableStart = 2;
 
 		D3D12_ROOT_PARAMETER param0 = {};
 		param0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -1112,6 +1117,10 @@ namespace D3D12Render {
 		commandList->ClearDepthStencilView(resources.dsvHeap->GetCPUDescriptorHandleForHeapStart(),
 			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
+		//Convert Normal Buffer To Write
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+
 		//Set RenderTargets
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
@@ -1136,6 +1145,10 @@ namespace D3D12Render {
 		//Convert DepthStencil Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
 			D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+		
+		//Convert Normal Buffer Readable
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {

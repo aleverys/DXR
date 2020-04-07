@@ -94,6 +94,8 @@ struct BasePassCB {
 
 struct BasePassPerObjectCB {
 	DirectX::XMMATRIX world;
+	DirectX::XMMATRIX worldTransposeInverse;
+	DirectX::XMFLOAT2 resolution;
 };
 
 //--------------------------------------------------------------------------------------
