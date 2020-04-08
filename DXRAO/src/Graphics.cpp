@@ -399,6 +399,8 @@ namespace D3DResources
 	*/
 	void Update_View_CB(D3D12Global& d3d, D3D12Resources& resources)
 	{
+		resources.frameIndexFromStart++;
+
 		const float rotationSpeed = 0.005f;
 		XMMATRIX view, invView;
 		XMFLOAT3 eye, focus, up;
@@ -430,17 +432,21 @@ namespace D3DResources
 		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 		invView = XMMatrixInverse(NULL, view);
 
-		//Update BasePass
+		//Update BasePass Constant Buffer
 		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, aspect, 10.0f, 1000.0f);
 		
-
 		resources.basePassCBData.viewProj = view * proj;
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
 
-		//Update DXR
-		//resources.viewCBData.view = XMMatrixTranspose(invView);
-		//resources.viewCBData.viewOriginAndTanHalfFovY = XMFLOAT4(eye.x, eye.y, eye.z, tanf(fov * 0.5f));
-		//resources.viewCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
+		//Update DXR ViewConstantBuffer
+		XMMATRIX worldViewProj = XMMatrixIdentity() * view * proj;
+		XMMATRIX worldViewProjInverse = XMMatrixInverse(NULL, worldViewProj);
+
+		resources.viewCBData.bufferSizeAndInvSize = XMFLOAT4(d3d.width, d3d.height, 1 / (float)d3d.width, 1 /(float) d3d.height);
+		resources.viewCBData.stateFrameIndex = resources.frameIndexFromStart;
+		resources.viewCBData.svPositionToTranslatedWorld = worldViewProjInverse;
+		resources.viewCBData.translatedWorldCameraOrigin=eye;
+		resources.viewCBData.worldCameraOrigin = eye;
 
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
 	}
@@ -460,7 +466,8 @@ namespace D3DResources
 		if (resources.basePassPerObjCB) resources.basePassPerObjCB->Unmap(0, nullptr);
 		if (resources.basePassPerObjCBStart) resources.basePassPerObjCBStart = nullptr;
 
-		SAFE_RELEASE(resources.DXROutput);
+		SAFE_RELEASE(resources.DXRAOOutput);
+		SAFE_RELEASE(resources.DXRHitDistanceOutput);
 		SAFE_RELEASE(resources.depthStencilBuffer);
 		SAFE_RELEASE(resources.vertexBuffer);
 		SAFE_RELEASE(resources.vertexIntermediateBuffer);
@@ -1325,7 +1332,7 @@ namespace DXR
 	void Create_RayGen_Program(D3D12Global& d3d, DXRGlobal& dxr, D3D12ShaderCompilerInfo& shaderCompiler)
 	{
 		// Load and compile the ray generation shader
-		dxr.rgs = RtProgram(D3D12ShaderInfo(L"shaders\\RayGen.hlsl", L"", L"lib_6_3"));
+		dxr.rgs = RtProgram(D3D12ShaderInfo(L"shaders\\AoRayGen.hlsl", L"", L"lib_6_3"));
 		D3DShaders::Compile_Shader(shaderCompiler, dxr.rgs);
 
 		// Describe the ray generation root signature
@@ -1338,16 +1345,16 @@ namespace DXR
 		ranges[0].OffsetInDescriptorsFromTableStart = 0;
 
 		ranges[1].BaseShaderRegister = 0;
-		ranges[1].NumDescriptors = 1;
+		ranges[1].NumDescriptors = 2;
 		ranges[1].RegisterSpace = 0;
 		ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 		ranges[1].OffsetInDescriptorsFromTableStart = 2;
 
 		ranges[2].BaseShaderRegister = 0;
-		ranges[2].NumDescriptors = 4;
+		ranges[2].NumDescriptors = 5;
 		ranges[2].RegisterSpace = 0;
 		ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		ranges[2].OffsetInDescriptorsFromTableStart = 3;
+		ranges[2].OffsetInDescriptorsFromTableStart = 4;
 
 		D3D12_ROOT_PARAMETER param0 = {};
 		param0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -1375,7 +1382,7 @@ namespace DXR
 	void Create_Miss_Program(D3D12Global& d3d, DXRGlobal& dxr, D3D12ShaderCompilerInfo& shaderCompiler)
 	{
 		// Load and compile the miss shader
-		dxr.miss = RtProgram(D3D12ShaderInfo(L"shaders\\Miss.hlsl", L"", L"lib_6_3"));
+		dxr.miss = RtProgram(D3D12ShaderInfo(L"shaders\\AoMiss.hlsl", L"", L"lib_6_3"));
 		D3DShaders::Compile_Shader(shaderCompiler, dxr.miss);
 	}
 
@@ -1386,7 +1393,7 @@ namespace DXR
 	{
 		// Load and compile the Closest Hit shader
 		dxr.hit = HitProgram(L"Hit");
-		dxr.hit.chs = RtProgram(D3D12ShaderInfo(L"shaders\\ClosestHit.hlsl", L"", L"lib_6_3"));
+		dxr.hit.chs = RtProgram(D3D12ShaderInfo(L"shaders\\AoClosestHit.hlsl", L"", L"lib_6_3"));
 		D3DShaders::Compile_Shader(shaderCompiler, dxr.hit.chs);
 	}
 
@@ -1625,7 +1632,8 @@ namespace DXR
 		// Need 8 entries:
 		// 1 CBV for the RayConfigCB
 		// 1 CBV for the ViewCB
-		// 1 UAV for the RT output
+		// 1 UAV for the AO Output
+		// 1 UAV for the HitDistance Output
 		// 1 SRV for the Scene BVH
 		// 1 SRV for the index buffer
 		// 1 SRV for the vertex buffer
@@ -1661,12 +1669,19 @@ namespace DXR
 		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
 		
-		// Create the DXR output buffer UAV
+		// Create the DXR AO Output buffer UAV
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
 		handle.ptr += handleIncrement;
-		d3d.device->CreateUnorderedAccessView(resources.DXROutput, nullptr, &uavDesc, handle);
+		d3d.device->CreateUnorderedAccessView(resources.DXRAOOutput, nullptr, &uavDesc, handle);
+
+		//Create the DXR HitDistance buffer UAV
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+		handle.ptr += handleIncrement;
+		d3d.device->CreateUnorderedAccessView(resources.DXRHitDistanceOutput, nullptr, &uavDesc, handle);
 
 		// Create the DXR Top Level Acceleration Structure SRV
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -1732,7 +1747,7 @@ namespace DXR
 	*/
 	void Create_DXR_Output(D3D12Global& d3d, D3D12Resources& resources)
 	{
-		// Describe the DXR output resource (texture)
+		// Describe the DXR AO Output resource (texture)
 		// Dimensions and format should match the swapchain
 		// Initialize as a copy source, since we will copy this buffer's contents to the swapchain
 		D3D12_RESOURCE_DESC desc = {};
@@ -1748,10 +1763,31 @@ namespace DXR
 		desc.SampleDesc.Quality = 0;
 
 		// Create the buffer resource
-		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&resources.DXROutput));
-		Utils::Validate(hr, L"Error: failed to create DXR output buffer!");
+		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&resources.DXRAOOutput));
+		Utils::Validate(hr, L"Error: failed to create DXR AO output buffer!");
 #if NAME_D3D_RESOURCES
-		resources.DXROutput->SetName(L"DXR Output Buffer");
+		resources.DXRAOOutput->SetName(L"DXR AO Output Buffer");
+#endif
+		
+		// Describe the DXR HitDistance resources (texture)
+		// Since it has't been used yet,init it's shaderResource state as unordered_acess_view
+		D3D12_RESOURCE_DESC desc = {};
+		desc.DepthOrArraySize = 1;
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		desc.Width = d3d.width;
+		desc.Height = d3d.height;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.MipLevels = 1;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+
+		// Create the buffer resource
+		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&resources.DXRHitDistanceOutput));
+		Utils::Validate(hr, L"Error: failed to create DXR HitDistance output buffer!");
+#if NAME_D3D_RESOURCES
+		resources.DXRAOOutput->SetName(L"DXR HitDistance Output Buffer");
 #endif
 	}
 
@@ -1771,7 +1807,7 @@ namespace DXR
 		OutputBarriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
 		// Transition the DXR output buffer to a copy source
-		OutputBarriers[1].Transition.pResource = resources.DXROutput;
+		OutputBarriers[1].Transition.pResource = resources.DXRAOOutput;
 		OutputBarriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
 		OutputBarriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 		OutputBarriers[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -1811,7 +1847,7 @@ namespace DXR
 		d3d.cmdList->ResourceBarrier(1, &OutputBarriers[1]);
 
 		// Copy the DXR output to the back buffer
-		d3d.cmdList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.DXROutput);
+		d3d.cmdList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.DXRAOOutput);
 
 		// Transition back buffer to present
 		OutputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;

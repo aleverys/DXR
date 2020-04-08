@@ -165,7 +165,8 @@ struct D3D12ShaderInfo
 
 struct D3D12Resources 
 {
-	ID3D12Resource*									DXROutput;
+	ID3D12Resource*									DXRAOOutput;
+	ID3D12Resource*									DXRHitDistanceOutput;
 	ID3D12Resource*									depthStencilBuffer = nullptr;
 
 	ID3D12Resource*									vertexBuffer = nullptr;
@@ -209,6 +210,7 @@ struct D3D12Resources
 	ID3D12DescriptorHeap*							dxBasePassRenderDescriptorHeap = nullptr;
 
 	ID3D12Resource*									normalBuffer;
+	int												frameIndexFromStart = 0;
 };
 
 struct D3D12Global
