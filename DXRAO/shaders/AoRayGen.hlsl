@@ -1,5 +1,5 @@
 
-#include"AoCommon.hlsl"
+#include "AoCommon.hlsl"
 
 [shader("raygeneration")]
 void AmbientOcclusionRGS()

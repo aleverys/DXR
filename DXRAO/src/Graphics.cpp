@@ -333,7 +333,7 @@ namespace D3DResources
 
 		//Init RayConfig
 		resources.rayConfigCBCBData.intensity = 0.5;
-		resources.rayConfigCBCBData.maxNormalBias = 0;
+		resources.rayConfigCBCBData.maxNormalBias = 0.1f;
 		resources.rayConfigCBCBData.maxRayDistance = 200;
 		resources.rayConfigCBCBData.samplesPerPixel = 1;
 
@@ -945,7 +945,7 @@ namespace D3D12Render {
 		// Need 2 entries
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.NumDescriptors = 2;
+		desc.NumDescriptors = 3;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1629,7 +1629,7 @@ namespace DXR
 	void Create_Descriptor_Heaps(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources, const Model& model)
 	{
 		// Describe the CBV/SRV/UAV heap
-		// Need 8 entries:
+		// Need 9 entries:
 		// 1 CBV for the RayConfigCB
 		// 1 CBV for the ViewCB
 		// 1 UAV for the AO Output
@@ -1641,7 +1641,7 @@ namespace DXR
 		// 1 SRV for the depth buffer
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.NumDescriptors = 8;
+		desc.NumDescriptors = 9;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1677,7 +1677,7 @@ namespace DXR
 		d3d.device->CreateUnorderedAccessView(resources.DXRAOOutput, nullptr, &uavDesc, handle);
 
 		//Create the DXR HitDistance buffer UAV
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc = {};
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
 		handle.ptr += handleIncrement;
@@ -1771,7 +1771,7 @@ namespace DXR
 		
 		// Describe the DXR HitDistance resources (texture)
 		// Since it has't been used yet,init it's shaderResource state as unordered_acess_view
-		D3D12_RESOURCE_DESC desc = {};
+		desc = {};
 		desc.DepthOrArraySize = 1;
 		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -1784,7 +1784,7 @@ namespace DXR
 		desc.SampleDesc.Quality = 0;
 
 		// Create the buffer resource
-		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&resources.DXRHitDistanceOutput));
+		hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&resources.DXRHitDistanceOutput));
 		Utils::Validate(hr, L"Error: failed to create DXR HitDistance output buffer!");
 #if NAME_D3D_RESOURCES
 		resources.DXRAOOutput->SetName(L"DXR HitDistance Output Buffer");

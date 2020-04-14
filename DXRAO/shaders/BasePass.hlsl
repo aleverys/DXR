@@ -7,7 +7,7 @@ struct VertexIn{
 
 struct VertexOut{
     float4 PosH    : SV_POSITION;
-    float4 Normal;
+    float4 Normal  : NORMAL;
 };
 
 cbuffer BassPassCB : register(b0) {
@@ -28,8 +28,11 @@ VertexOut vs(VertexIn v)
     
     float4 posWorld = mul(float4(v.PosL,1.0f),world);
     res.PosH = mul(posWorld,viewProj);
-    
-    float3 normal=mul(v.NormalL.xyz,float3x3(worldTransposeInverse));
+    float3 c1=worldTransposeInverse[0].xyz;
+    float3 c2=worldTransposeInverse[1].xyz;
+    float3 c3=worldTransposeInverse[2].xyz;
+
+    float3 normal=mul(v.NormalL.xyz,float3x3(c1,c2,c3));
     res.Normal=float4(normal,0);
 
     return res;
@@ -37,7 +40,7 @@ VertexOut vs(VertexIn v)
 
 float4 ps(VertexOut v) : SV_Target 
 {
-    uint2 positionInPixel=uint2(PosH.x*(float)resolution.x,PosH.y*(float)resolution.y);
+    uint2 positionInPixel=uint2(v.PosH.x*(float)resolution.x,v.PosH.y*(float)resolution.y);
     float3 normal=normalize(v.Normal.xyz);
     normalBuffer[positionInPixel]=float4(normal,0.f);
     return float4(normal,1.0f);
