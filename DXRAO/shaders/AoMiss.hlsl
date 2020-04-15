@@ -1,4 +1,4 @@
-#include "AoCommon.hlsl"
+#include "Common.hlsl"
 
 // ---[ Miss Shader ]---
 

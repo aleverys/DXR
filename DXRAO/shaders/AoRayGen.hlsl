@@ -1,8 +1,7 @@
-
 #include "AoCommon.hlsl"
 
 [shader("raygeneration")]
-void AmbientOcclusionRGS()
+void RayGen()
 {
 	uint2 pixelCoord = DispatchRaysIndex().xy;
 

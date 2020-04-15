@@ -511,7 +511,7 @@ namespace D3DShaders
 		CComPtr<IDxcIncludeHandler> dxcIncludeHandler;
 		hr = compilerInfo.library->CreateIncludeHandler(&dxcIncludeHandler);
 		Utils::Validate(hr, L"Error: failed to create include handler");
-
+		
 		// Compile the shader
 		IDxcOperationResult* result;
 		hr = compilerInfo.compiler->Compile(
