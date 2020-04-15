@@ -26,13 +26,11 @@ public:
 		d3d.vsync = config.vsync;
 
 		// Load a model
-		//Utils::LoadModel(config.model, model, material);
+		Utils::LoadModel(config.model, model, material);
 
 		// Initialize the shader compiler
 		D3DShaders::Init_Shader_Compiler(shaderCompiler);
-		DXR::Create_RayGen_Program(d3d, dxr, shaderCompiler);
-		DXR::Create_Miss_Program(d3d, dxr, shaderCompiler);
-		DXR::Create_Closest_Hit_Program(d3d, dxr, shaderCompiler);
+
 		// Initialize D3D12
 		D3D12::Create_Device(d3d);
 		D3D12::Create_Command_Queue(d3d);
