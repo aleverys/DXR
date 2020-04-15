@@ -54,6 +54,13 @@ struct Vertex
 	}
 };
 
+#pragma pack(4)
+struct HitInfo {
+	DirectX::XMFLOAT4 hitPointPosition;
+	DirectX::XMFLOAT4 hitPointNormal;
+	bool isHit;
+};
+
 struct Material 
 {
 	std::string name = "defaultMaterial";

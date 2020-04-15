@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include<map>
+#include<array>
 
 using std::string;
 using std::map;
