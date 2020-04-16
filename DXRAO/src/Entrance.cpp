@@ -36,8 +36,8 @@ public:
 		d3d.vsync = config.vsync;
 
 		// Load a model
-		Utils::LoadModel(config.model, model, material);
-
+		//Utils::LoadModel(config.model, model, material);
+		D3DResources::BuildBoxModel(testModel);
 		// Initialize the shader compiler
 		D3DShaders::Init_Shader_Compiler(shaderCompiler);
 
@@ -57,9 +57,9 @@ public:
 		D3DResources::Create_DSV_Descriptor_Heaps(d3d, resources);
 		D3DResources::Create_DepthStencilBuffer_DSV(d3d, resources);
 
-		D3DResources::Create_Vertex_Buffer(d3d, resources, model);
-		D3DResources::Create_Index_Buffer(d3d, resources, model);
-		D3DResources::Create_Texture(d3d, resources, material);
+		D3DResources::Create_Vertex_Buffer(d3d, resources, testModel);
+		D3DResources::Create_Index_Buffer(d3d, resources, testModel);
+		//D3DResources::Create_Texture(d3d, resources, material);
 		D3DResources::Create_RayConfig_CB(d3d, resources, material);
 		D3DResources::Create_View_CB(d3d, resources);
 
@@ -73,10 +73,10 @@ public:
 		D3D12Render::Create_Pipeline_State(d3d, d3dRender);
 
 		// Create DXR specific resources
-		DXR::Create_Bottom_Level_AS(d3d, dxr, resources, model);
+		DXR::Create_Bottom_Level_AS(d3d, dxr, resources, testModel);
 		DXR::Create_Top_Level_AS(d3d, dxr, resources);
 		DXR::Create_DXR_Output(d3d, resources);
-		DXR::Create_Descriptor_Heaps(d3d, dxr, resources, model);
+		DXR::Create_Descriptor_Heaps(d3d, dxr, resources, testModel);
 		DXR::Create_RayGen_Program(d3d, dxr, shaderCompiler);
 		DXR::Create_Miss_Program(d3d, dxr, shaderCompiler);
 		DXR::Create_Closest_Hit_Program(d3d, dxr, shaderCompiler);
@@ -98,8 +98,8 @@ public:
 
 	void Render()
 	{
-		D3D12Render::DrawBasePass(d3d, d3dRender, resources, model);
-		DXR::Build_Command_List(d3d, dxr, resources);
+		D3D12Render::DrawBasePass(d3d, d3dRender, resources, testModel);
+		//DXR::Build_Command_List(d3d, dxr, resources);
 		
 		D3D12::Submit_CmdList(d3d);
 		D3D12::WaitForGPU(d3d);
@@ -125,7 +125,8 @@ public:
 
 private:
 	HWND window;
-	Model model;
+	//Model model;
+	Model testModel;
 	Material material;
 
 	DXRGlobal dxr = {};

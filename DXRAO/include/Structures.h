@@ -97,16 +97,16 @@ struct ViewCB
 	float  padding01;
 	DirectX::XMFLOAT3 worldCameraOrigin;
 	unsigned int stateFrameIndex;
-	DirectX::XMMATRIX svPositionToTranslatedWorld;
+	DirectX::XMFLOAT4X4 svPositionToTranslatedWorld;
 };
 
 struct BasePassCB {
-	DirectX::XMMATRIX viewProj;
+	DirectX::XMFLOAT4X4 viewProj;
 };
 
 struct BasePassPerObjectCB {
-	DirectX::XMMATRIX world;
-	DirectX::XMMATRIX worldTransposeInverse;
+	DirectX::XMFLOAT4X4 world;
+	DirectX::XMFLOAT4X4 worldTransposeInverse;
 	DirectX::XMFLOAT2 resolution;
 };
 

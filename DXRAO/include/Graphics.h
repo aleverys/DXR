@@ -42,6 +42,7 @@ namespace D3DResources
 	void Upload_Texture(D3D12Global &d3d, ID3D12Resource* destResource, ID3D12Resource* srcResource, const TextureInfo &texture);
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
+	void BuildBoxModel(Model& model);
 
 	void Destroy(D3D12Resources &resources);
 }

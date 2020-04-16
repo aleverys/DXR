@@ -401,7 +401,8 @@ namespace D3DResources
 	{
 		resources.frameIndexFromStart++;
 
-		const float rotationSpeed = 0.005f;
+		//const float rotationSpeed = 0.005f;
+		const float rotationSpeed = 0.f;
 		XMMATRIX view, invView;
 		XMFLOAT3 eye, focus, up;
 		float aspect, fov;
@@ -434,8 +435,9 @@ namespace D3DResources
 
 		//Update BasePass Constant Buffer
 		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, aspect, 10.0f, 1000.0f);
-		
-		resources.basePassCBData.viewProj = view * proj;
+		XMMATRIX viewProj=XMMatrixMultiply(view,proj);
+		XMStoreFloat4x4(&resources.basePassCBData.viewProj, viewProj);
+
 		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
 
 		//Update DXR ViewConstantBuffer
@@ -444,7 +446,7 @@ namespace D3DResources
 
 		resources.viewCBData.bufferSizeAndInvSize = XMFLOAT4(d3d.width, d3d.height, 1 / (float)d3d.width, 1 /(float) d3d.height);
 		resources.viewCBData.stateFrameIndex = resources.frameIndexFromStart;
-		resources.viewCBData.svPositionToTranslatedWorld = worldViewProjInverse;
+		XMStoreFloat4x4(&resources.viewCBData.svPositionToTranslatedWorld, worldViewProjInverse);
 		resources.viewCBData.translatedWorldCameraOrigin=eye;
 		resources.viewCBData.worldCameraOrigin = eye;
 
@@ -555,6 +557,65 @@ namespace D3DResources
 		SAFE_RELEASE(resources.basePassPerObjCB);
 		SAFE_RELEASE(resources.normalBuffer);
 	}
+
+	void BuildBoxModel(Model& model) {
+		vector<float> positions=
+		{	-1.0f, -1.0f, -1.0f,
+			-1.0f, +1.0f, -1.0f,
+			+1.0f, +1.0f, -1.0f,
+			+1.0f, -1.0f, -1.0f,
+			-1.0f, -1.0f, +1.0f,
+			-1.0f, +1.0f, +1.0f,
+			+1.0f, +1.0f, +1.0f,
+			+1.0f, -1.0f, +1.0f
+		};
+
+		vector<float> noramls =
+		{	-1.0f, -1.0f, -1.0f,
+			-1.0f, +1.0f, -1.0f,
+			+1.0f, +1.0f, -1.0f,
+			+1.0f, -1.0f, -1.0f,
+			-1.0f, -1.0f, +1.0f,
+			-1.0f, +1.0f, +1.0f,
+			+1.0f, +1.0f, +1.0f,
+			+1.0f, -1.0f, +1.0f
+		};
+		
+		for (UINT32 i = 0; i < 8; i++) {
+			Vertex v;
+			v.position = { positions[i * 3],positions[i * 3 + 1],positions[i * 3 + 2] };
+			v.normal= { noramls[i * 3],noramls[i * 3 + 1],noramls[i * 3 + 2] };
+			v.uv = { 0.f,0.f };
+			model.vertices.push_back(v);
+		}
+
+		model.indices =
+		{
+			// front face
+			0, 1, 2,
+			0, 2, 3,
+
+			// back face
+			4, 6, 5,
+			4, 7, 6,
+
+			// left face
+			4, 5, 1,
+			4, 1, 0,
+
+			// right face
+			3, 2, 6,
+			3, 6, 7,
+
+			// top face
+			1, 5, 6,
+			1, 6, 2,
+
+			// bottom face
+			4, 0, 3,
+			4, 3, 7
+		};
+	}
 }
 
 //--------------------------------------------------------------------------------------
@@ -581,7 +642,7 @@ namespace D3DShaders
 		CComPtr<IDxcIncludeHandler> dxcIncludeHandler;
 		hr = compilerInfo.library->CreateIncludeHandler(&dxcIncludeHandler);
 		Utils::Validate(hr, L"Error: failed to create include handler");
-		
+
 		// Compile the shader
 		IDxcOperationResult* result;
 		hr = compilerInfo.compiler->Compile(
@@ -661,9 +722,19 @@ namespace D3DShaders
 
 		ID3DBlob* byteCode = nullptr;
 
+		DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef _DEBUG
+		// 设置 D3DCOMPILE_DEBUG 标志用于获取着色器调试信息。该标志可以提升调试体验，
+		// 但仍然允许着色器进行优化操作
+		dwShaderFlags |= D3DCOMPILE_DEBUG;
+
+		// 在Debug环境下禁用优化以避免出现一些不合理的情况
+		dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
 		ComPtr<ID3DBlob> errors;
 		hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-			entrypoint.c_str(), target.c_str(), compileFlags, 0, &byteCode, &errors);
+			entrypoint.c_str(), target.c_str(), dwShaderFlags, 0, &byteCode, &errors);
 
 		if (errors != nullptr)
 			OutputDebugStringA((char*)errors->GetBufferPointer());
@@ -1000,9 +1071,9 @@ namespace D3D12Render {
 
 		XMMATRIX world = XMMatrixIdentity();
 		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
-		resources.basePassPerObjCBData.world = world;
+		XMStoreFloat4x4(&resources.basePassPerObjCBData.world,world);
 		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
-		resources.basePassPerObjCBData.worldTransposeInverse = worldTransposeInverse;
+		XMStoreFloat4x4(&resources.basePassPerObjCBData.worldTransposeInverse,worldTransposeInverse);
 
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
 	}
@@ -1071,7 +1142,7 @@ namespace D3D12Render {
 		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
 		Utils::Validate(hr, L"Error: failed to create texture!");
 #if NAME_D3D_RESOURCES
-		resources.texture->SetName(L"NORMAL_BUFFER");
+		resources.normalBuffer->SetName(L"NORMAL_BUFFER");
 #endif
 
 	}
@@ -1218,7 +1289,7 @@ namespace D3D12Render {
 		commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		//Draw
-		commandList->DrawIndexedInstanced(model.vertices.size(),1,0,0,0);
+		commandList->DrawIndexedInstanced(model.indices.size(),1,0,0,0);
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
