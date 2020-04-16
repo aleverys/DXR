@@ -17,6 +17,16 @@ public:
 
 	void Init(ConfigInfo& config)
 	{
+#ifdef _DEBUG  
+		{
+			ID3D12Debug* pD3D12Debug;
+			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&pD3D12Debug))))
+			{
+				pD3D12Debug->EnableDebugLayer();
+			}
+			pD3D12Debug->Release();
+		}
+#endif
 		// Create a new window
 		HRESULT hr = Window::Create(config.width, config.height, config.instance, window, L"DirectX Raytracing Demo");
 		Utils::Validate(hr, L"Error: failed to create window!");

@@ -862,7 +862,7 @@ namespace D3D12
 		ID3D12RootSignature* pRootSig;
 		hr = d3d.device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&pRootSig));
 		Utils::Validate(hr, L"Error: failed to create root signature!");
-
+		hr=d3d.device->GetDeviceRemovedReason();
 		SAFE_RELEASE(sig);
 		SAFE_RELEASE(error);
 		return pRootSig;
@@ -1806,7 +1806,7 @@ namespace DXR
 		
 		// Create the depthbuffer SRV
 		D3D12_SHADER_RESOURCE_VIEW_DESC depthBufferSRVDesc = {};
-		depthBufferSRVDesc.Format=DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depthBufferSRVDesc.Format= DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 		depthBufferSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		depthBufferSRVDesc.Texture2D.MipLevels = 1;
 		depthBufferSRVDesc.Texture2D.MostDetailedMip = 0;
