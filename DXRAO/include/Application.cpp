@@ -113,6 +113,12 @@ void DXRApplication::Cleanup()
 	DestroyWindow(window);
 }
 
+void DXRApplication::UpdateCamera() {
+	camera.x = mRadius * sinf(mPhi) * cosf(mTheta);
+	camera.z = mRadius * sinf(mPhi) * sinf(mTheta);
+	camera.y = mRadius * cosf(mPhi);
+}
+
 void DXRApplication::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	lastMousePos.x = x;

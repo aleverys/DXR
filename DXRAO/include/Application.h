@@ -31,6 +31,7 @@ public:
 	void Update();
 	void Render();
 	void Cleanup();
+
 private:
 	HWND window;
 	Model model;
@@ -50,6 +51,7 @@ private:
 	void OnMouseMove(WPARAM btnState, int x, int y);
 	void OnMouseDown(WPARAM btnState, int x, int y);
 	void OnMouseUp(WPARAM btnState, int x, int y);
+	void UpdateCamera();
 
 	int	frameIndexFromStart = 0;
 	Point lastMousePos;

@@ -148,7 +148,7 @@ namespace D3DResources
 		ID3D12Resource* defaultBuffer;
 
 		// Create the actual default buffer resource.
-		HRESULT hr=device->CreateCommittedResource(
+		HRESULT hr = device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
@@ -196,10 +196,10 @@ namespace D3DResources
 	void Create_Vertex_Buffer(D3D12Global& d3d, D3D12Resources& resources, Model& model)
 	{
 		UINT64 size = (UINT)model.vertices.size() * sizeof(Vertex);
-		
+
 		//Upload Data from CPU->GPU(Upload Heap)->GPU(Default Heap which is fast to read but can't be accessed by cpu)
-		resources.vertexBuffer =CreateDefaultBuffer(d3d.device, d3d.cmdList, model.vertices.data(),size, resources.vertexIntermediateBuffer);
-		
+		resources.vertexBuffer = CreateDefaultBuffer(d3d.device, d3d.cmdList, model.vertices.data(), size, resources.vertexIntermediateBuffer);
+
 		// Initialize the vertex buffer view
 		resources.vertexBufferView.BufferLocation = resources.vertexBuffer->GetGPUVirtualAddress();
 		resources.vertexBufferView.StrideInBytes = sizeof(Vertex);
@@ -312,8 +312,8 @@ namespace D3DResources
 		dsvDesc.Texture2D.MipSlice = 0;
 
 		//Create DepthAndStencilView
-		d3d.device->CreateDepthStencilView(resources.depthStencilBuffer, &dsvDesc,resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
-		
+		d3d.device->CreateDepthStencilView(resources.depthStencilBuffer, &dsvDesc, resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
 		//Transition State
 		d3d.cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -397,19 +397,19 @@ namespace D3DResources
 	/**
 	* Update the base pass constant buffer.
 	*/
-	void Update_BasePass_CB(D3D12Global& d3d, D3D12Resources& resources,Camera& camera) {
+	void Update_BasePass_CB(D3D12Global& d3d, D3D12Resources& resources, Camera& camera) {
 		//Update BasePass Constant Buffer
 		XMMATRIX view, proj, viewProj;
 		XMFLOAT3 eye, focus, up;
-		
+
 		//view matrix
 		eye = XMFLOAT3(camera.x, camera.y, camera.z);
-		focus = { 0.f,0.f,0.f };
-		up = { 0.f,1.f,0.f };
-		view= XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
+		focus = XMFLOAT3(0.f, 0.f, 0.f);
+		up = XMFLOAT3(0.f, 1.f, 0.f);
+		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 
 		//proj matrix
-		camera.aspect = (float)d3d.width /(float) d3d.height;
+		camera.aspect = (float)d3d.width / (float)d3d.height;
 		proj = XMMatrixPerspectiveFovLH(camera.fov, camera.aspect, camera.nearZ, camera.farZ);
 
 		//viewproj
@@ -461,10 +461,10 @@ namespace D3DResources
 		XMMATRIX worldViewProj = XMMatrixIdentity() * view * proj;
 		XMMATRIX worldViewProjInverse = XMMatrixInverse(NULL, worldViewProj);
 
-		resources.viewCBData.bufferSizeAndInvSize = XMFLOAT4(d3d.width, d3d.height, 1 / (float)d3d.width, 1 /(float) d3d.height);
+		resources.viewCBData.bufferSizeAndInvSize = XMFLOAT4(d3d.width, d3d.height, 1 / (float)d3d.width, 1 / (float)d3d.height);
 		resources.viewCBData.stateFrameIndex = resources.frameIndexFromStart;
 		XMStoreFloat4x4(&resources.viewCBData.svPositionToTranslatedWorld, worldViewProjInverse);
-		resources.viewCBData.translatedWorldCameraOrigin=eye;
+		resources.viewCBData.translatedWorldCameraOrigin = eye;
 		resources.viewCBData.worldCameraOrigin = eye;
 
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
@@ -774,7 +774,7 @@ namespace D3D12
 				break;
 			}
 		}
-		
+
 		if (d3d.device == nullptr)
 		{
 			// Didn't find a device that supports ray tracing.
@@ -913,7 +913,7 @@ namespace D3D12
 		ID3D12RootSignature* pRootSig;
 		hr = d3d.device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&pRootSig));
 		Utils::Validate(hr, L"Error: failed to create root signature!");
-		hr=d3d.device->GetDeviceRemovedReason();
+		hr = d3d.device->GetDeviceRemovedReason();
 		SAFE_RELEASE(sig);
 		SAFE_RELEASE(error);
 		return pRootSig;
@@ -1030,7 +1030,7 @@ namespace D3D12
 
 namespace D3D12Render {
 	/**
-	* Create Contant Buffer 
+	* Create Contant Buffer
 	*/
 	void Create_Contant_Buffer(D3D12Global& d3d, D3D12Resources& resources) {
 		//Base Pass
@@ -1050,11 +1050,11 @@ namespace D3D12Render {
 		Utils::Validate(hr, L"Error: failed to map basepass perobj constant buffer!");
 
 		XMMATRIX world = XMMatrixIdentity();
-		world=world* XMMatrixScaling(0.01, 0.01, 0.01);
+		world = world * XMMatrixScaling(0.01, 0.01, 0.01);
 		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
-		XMStoreFloat4x4(&resources.basePassPerObjCBData.world,world);
+		XMStoreFloat4x4(&resources.basePassPerObjCBData.world, world);
 		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
-		XMStoreFloat4x4(&resources.basePassPerObjCBData.worldTransposeInverse,worldTransposeInverse);
+		XMStoreFloat4x4(&resources.basePassPerObjCBData.worldTransposeInverse, worldTransposeInverse);
 
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
 	}
@@ -1172,8 +1172,8 @@ namespace D3D12Render {
 	*/
 	void Create_Shaders(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass
-		d3dRender.shaders["basepass_vs"]=D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "vs", "vs_5_1");
-		d3dRender.shaders["basepass_ps"]=D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "ps", "ps_5_1");
+		d3dRender.shaders["basepass_vs"] = D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "vs", "vs_5_1");
+		d3dRender.shaders["basepass_ps"] = D3DShaders::Compile_Shader(L"Shaders\\BasePass.hlsl", nullptr, "ps", "ps_5_1");
 	}
 
 	/**
@@ -1198,7 +1198,7 @@ namespace D3D12Render {
 		ZeroMemory(&basePassPsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 		basePassPsoDesc.InputLayout = { d3dRender.inputLayout.data(), (UINT)d3dRender.inputLayout.size() };
 		basePassPsoDesc.pRootSignature = d3dRender.signatures["basepass"];
-		
+
 		basePassPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		basePassPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		basePassPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -1222,8 +1222,8 @@ namespace D3D12Render {
 			d3dRender.shaders["basepass_ps"]->GetBufferSize()
 		};
 
-		ID3D12PipelineState* state=nullptr;
-		HRESULT hr=d3d.device->CreateGraphicsPipelineState(&basePassPsoDesc, IID_PPV_ARGS(&state));
+		ID3D12PipelineState* state = nullptr;
+		HRESULT hr = d3d.device->CreateGraphicsPipelineState(&basePassPsoDesc, IID_PPV_ARGS(&state));
 		d3dRender.pipelineStates["basepass"] = state;
 		Utils::Validate(hr, L"Error: failed to build BasePass PSO!");
 
@@ -1236,9 +1236,9 @@ namespace D3D12Render {
 		commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 		commandList->SetGraphicsRootSignature(d3dRender.signatures["basepass"]);
 		commandList->SetGraphicsRootDescriptorTable(0, resources.dxBasePassRenderDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-		
+
 		//Set ViewPort
-		D3D12_VIEWPORT viewPort= { 0.f,0.f,d3d.width,d3d.height,0.f,1.f };
+		D3D12_VIEWPORT viewPort = { 0.f,0.f,d3d.width,d3d.height,0.f,1.f };
 		D3D12_RECT scissorRect = { 0,0,d3d.width,d3d.height };
 		commandList->RSSetViewports(1, &viewPort);
 		commandList->RSSetScissorRects(1, &scissorRect);
@@ -1258,8 +1258,8 @@ namespace D3D12Render {
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandle.ptr += (size_t)d3d.frameIndex * (size_t)resources.rtvDescSize;
-		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0,nullptr);
-		commandList->OMSetRenderTargets(1, &rtvHandle, true,&resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0, nullptr);
+		commandList->OMSetRenderTargets(1, &rtvHandle, true, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 		//Set PSO
 		commandList->SetPipelineState(d3dRender.pipelineStates["basepass"]);
@@ -1270,14 +1270,14 @@ namespace D3D12Render {
 		commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		//Draw
-		commandList->DrawIndexedInstanced(model.indices.size(),1,0,0,0);
+		commandList->DrawIndexedInstanced(model.indices.size(), 1, 0, 0, 0);
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 		//Convert DepthStencil Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
 			D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
-		
+
 		//Convert Normal Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -1663,7 +1663,7 @@ namespace DXR
 		// Add a state subobject for the ray tracing pipeline config
 		D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig = {};
 		pipelineConfig.MaxTraceRecursionDepth = 1;
-		
+
 		D3D12_STATE_SUBOBJECT pipelineConfigObject = {};
 		pipelineConfigObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
 		pipelineConfigObject.pDesc = &pipelineConfig;
@@ -1794,7 +1794,7 @@ namespace DXR
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
-		
+
 		// Create the DXR AO Output buffer UAV
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
@@ -1855,10 +1855,10 @@ namespace DXR
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.normalBuffer, &normalBufferSRVDesc, handle);
-		
+
 		// Create the depthbuffer SRV
 		D3D12_SHADER_RESOURCE_VIEW_DESC depthBufferSRVDesc = {};
-		depthBufferSRVDesc.Format= DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		depthBufferSRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 		depthBufferSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		depthBufferSRVDesc.Texture2D.MipLevels = 1;
 		depthBufferSRVDesc.Texture2D.MostDetailedMip = 0;
@@ -1894,7 +1894,7 @@ namespace DXR
 #if NAME_D3D_RESOURCES
 		resources.DXRAOOutput->SetName(L"DXR AO Output Buffer");
 #endif
-		
+
 		// Describe the DXR HitDistance resources (texture)
 		// Since it has't been used yet,init it's shaderResource state as unordered_acess_view
 		desc = {};
@@ -1957,7 +1957,7 @@ namespace DXR
 		desc.HitGroupTable.StartAddress = dxr.shaderTable->GetGPUVirtualAddress() + (dxr.shaderTableRecordSize * 2);
 		desc.HitGroupTable.SizeInBytes = dxr.shaderTableRecordSize;			// Only a single Hit program entry
 		desc.HitGroupTable.StrideInBytes = dxr.shaderTableRecordSize;
-		
+
 		desc.Width = d3d.width;
 		desc.Height = d3d.height;
 		desc.Depth = 1;
