@@ -5,6 +5,7 @@
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\Window.cpp" />
     <ClCompile Include="src\Entrance.cpp" />
+    <ClCompile Include="include\Application.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Common.h">
@@ -32,6 +33,12 @@
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="include\Window.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MathHelper.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Application.h">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>

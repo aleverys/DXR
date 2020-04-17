@@ -395,20 +395,44 @@ namespace D3DResources
 	}
 
 	/**
+	* Update the base pass constant buffer.
+	*/
+	void Update_BasePass_CB(D3D12Global& d3d, D3D12Resources& resources,Camera& camera) {
+		//Update BasePass Constant Buffer
+		XMMATRIX view, proj, viewProj;
+		XMFLOAT3 eye, focus, up;
+		
+		//view matrix
+		eye = XMFLOAT3(camera.x, camera.y, camera.z);
+		focus = { 0.f,0.f,0.f };
+		up = { 0.f,1.f,0.f };
+		view= XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
+
+		//proj matrix
+		camera.aspect = (float)d3d.width /(float) d3d.height;
+		proj = XMMatrixPerspectiveFovLH(camera.fov, camera.aspect, camera.nearZ, camera.farZ);
+
+		//viewproj
+		viewProj = XMMatrixMultiply(view, proj);
+		XMStoreFloat4x4(&resources.basePassCBData.viewProj, XMMatrixTranspose(viewProj));
+
+		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
+	}
+
+	/**
 	* Update the view constant buffer.
 	*/
-	void Update_View_CB(D3D12Global& d3d, D3D12Resources& resources)
+	void Update_DXR_CB(D3D12Global& d3d, D3D12Resources& resources)
 	{
-		resources.frameIndexFromStart++;
-
-		//const float rotationSpeed = 0.005f;
-		const float rotationSpeed = 0.f;
+		const float rotationSpeed = 0.005f;
+		//const float rotationSpeed = 0.f;
 		XMMATRIX view, invView;
 		XMFLOAT3 eye, focus, up;
 		float aspect, fov;
 
 		resources.eyeAngle.x += rotationSpeed;
 
+		float radius = 20.f;
 #if _DEBUG
 		float x = 2.f * cosf(resources.eyeAngle.x);
 		float y = 0.f;
@@ -416,12 +440,11 @@ namespace D3DResources
 
 		focus = XMFLOAT3(0.f, 0.f, 0.f);
 #else
-		float x = 8.f * cosf(resources.eyeAngle.x);
+		float x = radius * cosf(resources.eyeAngle.x);
 		float y = 1.5f + 1.5f * cosf(resources.eyeAngle.x);
-		float z = 8.f + 2.25f * sinf(resources.eyeAngle.x);
+		float z = radius + 2.25f * sinf(resources.eyeAngle.x);
 		focus = XMFLOAT3(0.f, 1.75f, 0.f);
 #endif
-
 		eye = XMFLOAT3(x, y, z);
 		up = XMFLOAT3(0.f, 1.f, 0.f);
 
@@ -433,14 +456,8 @@ namespace D3DResources
 		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 		invView = XMMatrixInverse(NULL, view);
 
-		//Update BasePass Constant Buffer
-		XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, aspect, 10.0f, 1000.0f);
-		XMMATRIX viewProj=XMMatrixMultiply(view,proj);
-		XMStoreFloat4x4(&resources.basePassCBData.viewProj, viewProj);
-
-		memcpy(resources.basePassCBStart, &resources.basePassCBData, sizeof(resources.basePassCBData));
-
 		//Update DXR ViewConstantBuffer
+#ifdef usedxr
 		XMMATRIX worldViewProj = XMMatrixIdentity() * view * proj;
 		XMMATRIX worldViewProjInverse = XMMatrixInverse(NULL, worldViewProj);
 
@@ -451,6 +468,7 @@ namespace D3DResources
 		resources.viewCBData.worldCameraOrigin = eye;
 
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
+#endif
 	}
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers()
@@ -558,64 +576,6 @@ namespace D3DResources
 		SAFE_RELEASE(resources.normalBuffer);
 	}
 
-	void BuildBoxModel(Model& model) {
-		vector<float> positions=
-		{	-1.0f, -1.0f, -1.0f,
-			-1.0f, +1.0f, -1.0f,
-			+1.0f, +1.0f, -1.0f,
-			+1.0f, -1.0f, -1.0f,
-			-1.0f, -1.0f, +1.0f,
-			-1.0f, +1.0f, +1.0f,
-			+1.0f, +1.0f, +1.0f,
-			+1.0f, -1.0f, +1.0f
-		};
-
-		vector<float> noramls =
-		{	-1.0f, -1.0f, -1.0f,
-			-1.0f, +1.0f, -1.0f,
-			+1.0f, +1.0f, -1.0f,
-			+1.0f, -1.0f, -1.0f,
-			-1.0f, -1.0f, +1.0f,
-			-1.0f, +1.0f, +1.0f,
-			+1.0f, +1.0f, +1.0f,
-			+1.0f, -1.0f, +1.0f
-		};
-		
-		for (UINT32 i = 0; i < 8; i++) {
-			Vertex v;
-			v.position = { positions[i * 3],positions[i * 3 + 1],positions[i * 3 + 2] };
-			v.normal= { noramls[i * 3],noramls[i * 3 + 1],noramls[i * 3 + 2] };
-			v.uv = { 0.f,0.f };
-			model.vertices.push_back(v);
-		}
-
-		model.indices =
-		{
-			// front face
-			0, 1, 2,
-			0, 2, 3,
-
-			// back face
-			4, 6, 5,
-			4, 7, 6,
-
-			// left face
-			4, 5, 1,
-			4, 1, 0,
-
-			// right face
-			3, 2, 6,
-			3, 6, 7,
-
-			// top face
-			1, 5, 6,
-			1, 6, 2,
-
-			// bottom face
-			4, 0, 3,
-			4, 3, 7
-		};
-	}
 }
 
 //--------------------------------------------------------------------------------------
@@ -784,6 +744,7 @@ namespace D3D12
 		Utils::Validate(hr, L"Error: failed to create DXGI factory!");
 
 		// Create the device
+#ifdef usedxr
 		d3d.adapter = nullptr;
 		for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != d3d.factory->EnumAdapters1(adapterIndex, &d3d.adapter); ++adapterIndex)
 		{
@@ -819,6 +780,25 @@ namespace D3D12
 			// Didn't find a device that supports ray tracing.
 			Utils::Validate(E_FAIL, L"Error: failed to create ray tracing device!");
 		}
+#else
+		// Try to create low-level hardware device.
+		HRESULT hardwareResult = D3D12CreateDevice(
+			nullptr,             // default adapter
+			D3D_FEATURE_LEVEL_11_0,
+			IID_PPV_ARGS(&d3d.device));
+
+		// Fallback to WARP device.
+		if (FAILED(hardwareResult))
+		{
+			ComPtr<IDXGIAdapter> pWarpAdapter;
+			ThrowIfFailed(d3d.factory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
+
+			ThrowIfFailed(D3D12CreateDevice(
+				pWarpAdapter.Get(),
+				D3D_FEATURE_LEVEL_11_0,
+				IID_PPV_ARGS(&d3d.device)));
+		}
+#endif
 	}
 
 	/**
@@ -1070,6 +1050,7 @@ namespace D3D12Render {
 		Utils::Validate(hr, L"Error: failed to map basepass perobj constant buffer!");
 
 		XMMATRIX world = XMMatrixIdentity();
+		world=world* XMMatrixScaling(0.01, 0.01, 0.01);
 		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
 		XMStoreFloat4x4(&resources.basePassPerObjCBData.world,world);
 		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);

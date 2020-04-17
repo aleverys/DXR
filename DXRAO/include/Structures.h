@@ -31,6 +31,11 @@ struct ConfigInfo
 	HINSTANCE		instance = NULL;
 };
 
+struct Point {
+	long x;
+	long y;
+};
+
 struct Vertex
 {
 	DirectX::XMFLOAT3 position;
@@ -66,6 +71,20 @@ struct Material
 	std::string name = "defaultMaterial";
 	std::string texturePath = "";
 	float  textureResolution = 512;
+};
+
+struct Camera {
+	float x;
+	float y;
+	float z;
+
+	float fov;
+	float aspect;
+	float nearZ;
+	float farZ;
+
+	Camera() :Camera(1920.f / 1080.f) {};
+	Camera(float _aspect) :x(0.f), y(0.f), z(0.f), fov(65.f * (3.141592654f / 180.f)), nearZ(1.f),farZ(1000.f),aspect(_aspect) {}
 };
 
 struct Model
@@ -217,7 +236,6 @@ struct D3D12Resources
 	ID3D12DescriptorHeap*							dxBasePassRenderDescriptorHeap = nullptr;
 
 	ID3D12Resource*									normalBuffer;
-	int												frameIndexFromStart = 0;
 };
 
 struct D3D12Global
