@@ -171,8 +171,10 @@ namespace Utils
 
 		// Get the first material
 		// Only support a single material right now
-		//material.name = materials[0].name;
-		//material.texturePath = materials[0].diffuse_texname;
+		if (materials.size() > 0) {
+			material.name = materials[0].name;
+			material.texturePath = materials[0].diffuse_texname;
+		}
 
 		// Parse the model and store the unique vertices
 		unordered_map<Vertex, uint32_t> uniqueVertices = {};
@@ -195,11 +197,14 @@ namespace Utils
 				};
 
 				vertex.uv = { 0.f,0.f };
-				//vertex.uv =
-				//{
-				//	attrib.texcoords[2 * index.texcoord_index + 0],
-				//	1 - attrib.texcoords[2 * index.texcoord_index + 1]
-				//};
+				
+				if (attrib.texcoords.size() > 0) {
+					vertex.uv =
+					{
+						attrib.texcoords[2 * index.texcoord_index + 0],
+						1 - attrib.texcoords[2 * index.texcoord_index + 1]
+					};
+				}
 
 				// Fast find unique vertices using a hash
 				if (uniqueVertices.count(vertex) == 0)

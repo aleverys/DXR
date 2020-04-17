@@ -57,5 +57,5 @@ private:
 	Point lastMousePos;
 	float mTheta = 1.5f * Pi;
 	float mPhi = 0.785398163f;
-	float mRadius = 5.0f;
+	float mRadius = 20.0f;
 };

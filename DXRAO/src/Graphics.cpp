@@ -402,9 +402,19 @@ namespace D3DResources
 		XMMATRIX view, proj, viewProj;
 		XMFLOAT3 eye, focus, up;
 
+		const float rotationSpeed = 0.005f;
+		resources.eyeAngle.x += rotationSpeed;
+
+		float radius = 8.f;
+		float x = radius * cosf(resources.eyeAngle.x);
+		float y = 1.5f + 1.5f * cosf(resources.eyeAngle.x);
+		float z = radius + 2.25f * sinf(resources.eyeAngle.x);
+		focus = XMFLOAT3(0.f, 1.75f, 0.f);
+		eye = { x,y,z };
+
 		//view matrix
-		eye = XMFLOAT3(camera.x, camera.y, camera.z);
-		focus = XMFLOAT3(0.f, 0.f, 0.f);
+		//eye = XMFLOAT3(camera.x, camera.y, camera.z);
+		//focus = XMFLOAT3(0.f, 0.f, 0.f);
 		up = XMFLOAT3(0.f, 1.f, 0.f);
 		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 
@@ -412,7 +422,7 @@ namespace D3DResources
 		camera.aspect = (float)d3d.width / (float)d3d.height;
 		proj = XMMatrixPerspectiveFovLH(camera.fov, camera.aspect, camera.nearZ, camera.farZ);
 
-		//viewproj
+		//viewproj matrix
 		viewProj = XMMatrixMultiply(view, proj);
 		XMStoreFloat4x4(&resources.basePassCBData.viewProj, XMMatrixTranspose(viewProj));
 
@@ -1050,7 +1060,9 @@ namespace D3D12Render {
 		Utils::Validate(hr, L"Error: failed to map basepass perobj constant buffer!");
 
 		XMMATRIX world = XMMatrixIdentity();
-		world = world * XMMatrixScaling(0.01, 0.01, 0.01);
+#ifdef _DEBUG
+		world = world * XMMatrixScaling(0.006, 0.006, 0.006);
+#endif
 		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
 		XMStoreFloat4x4(&resources.basePassPerObjCBData.world, world);
 		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
@@ -1115,12 +1127,12 @@ namespace D3D12Render {
 		normalBufferDesc.SampleDesc.Count = 1;
 		normalBufferDesc.SampleDesc.Quality = 0;
 		normalBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		normalBufferDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		normalBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		normalBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		normalBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;;
 
 		// Create the texture resource
-		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
+		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
 		Utils::Validate(hr, L"Error: failed to create texture!");
 #if NAME_D3D_RESOURCES
 		resources.normalBuffer->SetName(L"NORMAL_BUFFER");
@@ -1199,7 +1211,9 @@ namespace D3D12Render {
 		basePassPsoDesc.InputLayout = { d3dRender.inputLayout.data(), (UINT)d3dRender.inputLayout.size() };
 		basePassPsoDesc.pRootSignature = d3dRender.signatures["basepass"];
 
-		basePassPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		auto rasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		rasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+		basePassPsoDesc.RasterizerState = rasterizerState;
 		basePassPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		basePassPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		basePassPsoDesc.SampleMask = UINT_MAX;
@@ -1251,7 +1265,7 @@ namespace D3D12Render {
 
 		//Convert Normal Buffer To Write
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
-			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+			D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 		//Set RenderTargets
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
@@ -1263,7 +1277,7 @@ namespace D3D12Render {
 
 		//Set PSO
 		commandList->SetPipelineState(d3dRender.pipelineStates["basepass"]);
-
+		
 		//Set IA
 		commandList->IASetVertexBuffers(0, 1, &resources.vertexBufferView);
 		commandList->IASetIndexBuffer(&resources.indexBufferView);
@@ -1271,8 +1285,8 @@ namespace D3D12Render {
 
 		//Draw
 		commandList->DrawIndexedInstanced(model.indices.size(), 1, 0, 0, 0);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+		/*commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));*/
 
 		//Convert DepthStencil Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
@@ -1280,7 +1294,16 @@ namespace D3D12Render {
 
 		//Convert Normal Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ));
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE));
+
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST));
+
+		d3d.cmdList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.normalBuffer);
+		
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
+
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {

@@ -82,6 +82,7 @@ void DXRApplication::Init(ConfigInfo& config)
 void DXRApplication::Update()
 {
 	frameIndexFromStart;
+	UpdateCamera();
 	D3DResources::Update_BasePass_CB(d3d, resources,camera);
 	//D3DResources::Update_DXR_CB(d3d, resources);
 }
