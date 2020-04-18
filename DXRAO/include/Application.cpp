@@ -53,7 +53,7 @@ void DXRApplication::Init(ConfigInfo& config)
 
 	// Create DirectX render resources
 	D3D12Render::Create_Contant_Buffer(d3d, resources);
-	D3D12Render::Create_Normal_Buffer(d3d, resources);
+	D3D12Render::Create_Normal_Buffer_And_RTV(d3d, resources);
 	D3D12Render::Create_Descriptor_Heaps(d3d, resources);
 	D3D12Render::Create_Root_Signature(d3d, d3dRender);
 	D3D12Render::Create_Shaders(d3d, d3dRender);

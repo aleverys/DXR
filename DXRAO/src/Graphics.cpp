@@ -363,7 +363,7 @@ namespace D3DResources
 	{
 		// Describe the RTV descriptor heap
 		D3D12_DESCRIPTOR_HEAP_DESC rtvDesc = {};
-		rtvDesc.NumDescriptors = 2;
+		rtvDesc.NumDescriptors = 3;
 		rtvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		rtvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
@@ -741,20 +741,18 @@ namespace D3D12
 #if defined(_DEBUG)
 		// Enable the D3D12 debug layer.
 		{
-			ID3D12Debug* debugController;
-			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-			{
-				debugController->EnableDebugLayer();
-			}
+			ComPtr<ID3D12Debug> debugController;
+			ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+			debugController->EnableDebugLayer();
 		}
 #endif
 
+#ifdef usedxr
 		// Create a DXGI Factory
 		HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&d3d.factory));
 		Utils::Validate(hr, L"Error: failed to create DXGI factory!");
 
 		// Create the device
-#ifdef usedxr
 		d3d.adapter = nullptr;
 		for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != d3d.factory->EnumAdapters1(adapterIndex, &d3d.adapter); ++adapterIndex)
 		{
@@ -791,6 +789,8 @@ namespace D3D12
 			Utils::Validate(E_FAIL, L"Error: failed to create ray tracing device!");
 		}
 #else
+		ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&d3d.factory)));
+
 		// Try to create low-level hardware device.
 		HRESULT hardwareResult = D3D12CreateDevice(
 			nullptr,             // default adapter
@@ -1064,9 +1064,9 @@ namespace D3D12Render {
 		world = world * XMMatrixScaling(0.006, 0.006, 0.006);
 #endif
 		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
-		XMStoreFloat4x4(&resources.basePassPerObjCBData.world, world);
-		resources.basePassPerObjCBData.resolution = XMFLOAT2((float)d3d.width, (float)d3d.height);
-		XMStoreFloat4x4(&resources.basePassPerObjCBData.worldTransposeInverse, worldTransposeInverse);
+		XMStoreFloat4x4(&resources.basePassPerObjCBData.world, XMMatrixTranspose(world));
+		resources.basePassPerObjCBData.resolution = XMINT2(d3d.width,d3d.height);
+		XMStoreFloat4x4(&resources.basePassPerObjCBData.worldTransposeInverse, XMMatrixTranspose(worldTransposeInverse));
 
 		memcpy(resources.basePassPerObjCBStart, &resources.basePassPerObjCBData, sizeof(resources.basePassPerObjCBData));
 	}
@@ -1079,7 +1079,7 @@ namespace D3D12Render {
 		// Need 2 entries
 
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.NumDescriptors = 3;
+		desc.NumDescriptors = 2;
 		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1106,19 +1106,12 @@ namespace D3D12Render {
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateConstantBufferView(&cbvDesc, handle);
-
-		//Create the noramlBuffer UAV
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-
-		handle.ptr += handleIncrement;
-		d3d.device->CreateUnorderedAccessView(resources.normalBuffer, nullptr, &uavDesc, handle);
 	}
 
 	/**
 	* Build Normal Buffer
 	*/
-	void Create_Normal_Buffer(D3D12Global& d3d, D3D12Resources& resources) {
+	void Create_Normal_Buffer_And_RTV(D3D12Global& d3d, D3D12Resources& resources) {
 		D3D12_RESOURCE_DESC normalBufferDesc = {};
 		normalBufferDesc.Width = d3d.width;
 		normalBufferDesc.Height = d3d.height;
@@ -1126,7 +1119,7 @@ namespace D3D12Render {
 		normalBufferDesc.DepthOrArraySize = 1;
 		normalBufferDesc.SampleDesc.Count = 1;
 		normalBufferDesc.SampleDesc.Quality = 0;
-		normalBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		normalBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 		normalBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		normalBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		normalBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;;
@@ -1137,7 +1130,13 @@ namespace D3D12Render {
 #if NAME_D3D_RESOURCES
 		resources.normalBuffer->SetName(L"NORMAL_BUFFER");
 #endif
-
+		//Create Normal Buffer RenderTarget View
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+		rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		for (auto i = 0; i < 2; i++) {
+			rtvHandle.ptr += resources.rtvDescSize;
+		}
+		d3d.device->CreateRenderTargetView(resources.normalBuffer, nullptr, rtvHandle);
 	}
 
 	/**
@@ -1145,19 +1144,13 @@ namespace D3D12Render {
 	*/
 	void Create_Root_Signature(D3D12Global& d3d, D3D12RenderGlobal& d3dRender) {
 		//Base Pass Root_Signature
-		D3D12_DESCRIPTOR_RANGE ranges[2];
+		D3D12_DESCRIPTOR_RANGE ranges[1];
 
 		ranges[0].BaseShaderRegister = 0;
 		ranges[0].NumDescriptors = 2;
 		ranges[0].RegisterSpace = 0;
 		ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 		ranges[0].OffsetInDescriptorsFromTableStart = 0;
-
-		ranges[1].BaseShaderRegister = 0;
-		ranges[1].NumDescriptors = 1;
-		ranges[1].RegisterSpace = 0;
-		ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		ranges[1].OffsetInDescriptorsFromTableStart = 2;
 
 		D3D12_ROOT_PARAMETER param0 = {};
 		param0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -1218,8 +1211,9 @@ namespace D3D12Render {
 		basePassPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		basePassPsoDesc.SampleMask = UINT_MAX;
 		basePassPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		basePassPsoDesc.NumRenderTargets = 1;
+		basePassPsoDesc.NumRenderTargets = 2;
 		basePassPsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		basePassPsoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		basePassPsoDesc.SampleDesc.Count = 1;
 		basePassPsoDesc.SampleDesc.Quality = 0;
 		basePassPsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -1263,17 +1257,23 @@ namespace D3D12Render {
 		commandList->ClearDepthStencilView(resources.dsvHeap->GetCPUDescriptorHandleForHeapStart(),
 			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-		//Convert Normal Buffer To Write
+		//Convert Normal Buffer To Writable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
-			D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+			D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 		//Set RenderTargets
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		D3D12_CPU_DESCRIPTOR_HANDLE normalRTVHandle = rtvHandle;
+		for (auto i = 0; i < 2; i++) normalRTVHandle.ptr += resources.rtvDescSize;
 		rtvHandle.ptr += (size_t)d3d.frameIndex * (size_t)resources.rtvDescSize;
-		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0, nullptr);
-		commandList->OMSetRenderTargets(1, &rtvHandle, true, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { rtvHandle,normalRTVHandle };
+
+		//commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0, nullptr);
+		commandList->ClearRenderTargetView(normalRTVHandle, Colors::White, 0, nullptr);
+		commandList->OMSetRenderTargets(2, rtvHandles, false, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 		//Set PSO
 		commandList->SetPipelineState(d3dRender.pipelineStates["basepass"]);
@@ -1294,12 +1294,12 @@ namespace D3D12Render {
 
 		//Convert Normal Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST));
 
-		d3d.cmdList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.normalBuffer);
+		commandList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.normalBuffer);
 		
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));

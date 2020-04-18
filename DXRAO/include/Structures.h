@@ -126,7 +126,7 @@ struct BasePassCB {
 struct BasePassPerObjectCB {
 	DirectX::XMFLOAT4X4 world;
 	DirectX::XMFLOAT4X4 worldTransposeInverse;
-	DirectX::XMFLOAT2 resolution;
+	DirectX::XMINT2 resolution;
 };
 
 //--------------------------------------------------------------------------------------
@@ -236,6 +236,7 @@ struct D3D12Resources
 	ID3D12DescriptorHeap*							dxBasePassRenderDescriptorHeap = nullptr;
 
 	ID3D12Resource*									normalBuffer;
+
 };
 
 struct D3D12Global
