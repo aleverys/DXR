@@ -88,6 +88,6 @@ void RayGen()
 		RawOutput.y = closestRayHitDistance;
 	}
 
-	RWOcclusionMaskUAV[pixelCoord] = RawOutput.x;
+	RWOcclusionMaskUAV[pixelCoord] = 0.5f;
 	RWHitDistanceUAV[pixelCoord] = RawOutput.y;
 }

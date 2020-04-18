@@ -1053,7 +1053,7 @@ namespace D3D12Render {
 
 		XMMATRIX world = XMMatrixIdentity();
 #ifdef _DEBUG
-		world = world * XMMatrixScaling(0.006, 0.006, 0.006);
+		//world = world * XMMatrixScaling(0.006, 0.006, 0.006);
 #endif
 		XMMATRIX worldTransposeInverse = XMMatrixTranspose(XMMatrixInverse(NULL, world));
 		XMStoreFloat4x4(&resources.basePassPerObjCBData.world, XMMatrixTranspose(world));
@@ -1206,7 +1206,7 @@ namespace D3D12Render {
 		basePassPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		basePassPsoDesc.NumRenderTargets = 2;
 		basePassPsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		basePassPsoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		basePassPsoDesc.RTVFormats[1] = DXGI_FORMAT_R16G16B16A16_UNORM;
 		basePassPsoDesc.SampleDesc.Count = 1;
 		basePassPsoDesc.SampleDesc.Quality = 0;
 		basePassPsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -1254,16 +1254,20 @@ namespace D3D12Render {
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
 			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-		//Set RenderTargets
+		//In fact there's no need to write into backbuffer in this pass
+
+		//Convert RT Writable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+		//Set RenderTargets
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = resources.rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		D3D12_CPU_DESCRIPTOR_HANDLE normalRTVHandle = rtvHandle;
 		for (auto i = 0; i < 2; i++) normalRTVHandle.ptr += resources.rtvDescSize;
 		rtvHandle.ptr += (size_t)d3d.frameIndex * (size_t)resources.rtvDescSize;
 
+		//Clear View
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { rtvHandle,normalRTVHandle };
-
 		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0, nullptr);
 		commandList->ClearRenderTargetView(normalRTVHandle, Colors::White, 0, nullptr);
 		commandList->OMSetRenderTargets(2, rtvHandles, false, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -1278,8 +1282,6 @@ namespace D3D12Render {
 
 		//Draw
 		commandList->DrawIndexedInstanced(model.indices.size(), 1, 0, 0, 0);
-		/*commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));*/
 
 		//Convert DepthStencil Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.depthStencilBuffer,
@@ -1288,18 +1290,6 @@ namespace D3D12Render {
 		//Convert Normal Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-		/*commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST));
-
-		commandList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.normalBuffer);
-		
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));*/
-
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
 	}
 
 	void Destroy(D3D12RenderGlobal& d3dRender) {
@@ -1864,17 +1854,6 @@ namespace DXR
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.vertexBuffer, &vertexSRVDesc, handle);
 
-		// Create the normalBuffer SRV
-		D3D12_SHADER_RESOURCE_VIEW_DESC normalBufferSRVDesc = {};
-		normalBufferSRVDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
-		normalBufferSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		normalBufferSRVDesc.Texture2D.MipLevels = 1;
-		normalBufferSRVDesc.Texture2D.MostDetailedMip = 0;
-		normalBufferSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-		handle.ptr += handleIncrement;
-		d3d.device->CreateShaderResourceView(resources.normalBuffer, &normalBufferSRVDesc, handle);
-
 		// Create the depthbuffer SRV
 		D3D12_SHADER_RESOURCE_VIEW_DESC depthBufferSRVDesc = {};
 		depthBufferSRVDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
@@ -1885,6 +1864,17 @@ namespace DXR
 
 		handle.ptr += handleIncrement;
 		d3d.device->CreateShaderResourceView(resources.depthStencilBuffer, &depthBufferSRVDesc, handle);
+
+		// Create the normalBuffer SRV
+		D3D12_SHADER_RESOURCE_VIEW_DESC normalBufferSRVDesc = {};
+		normalBufferSRVDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		normalBufferSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		normalBufferSRVDesc.Texture2D.MipLevels = 1;
+		normalBufferSRVDesc.Texture2D.MostDetailedMip = 0;
+		normalBufferSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		handle.ptr += handleIncrement;
+		d3d.device->CreateShaderResourceView(resources.normalBuffer, &normalBufferSRVDesc, handle);
 	}
 
 	/**
@@ -1947,7 +1937,7 @@ namespace DXR
 
 		// Transition the back buffer to a copy destination
 		OutputBarriers[0].Transition.pResource = d3d.backBuffer[d3d.frameIndex];
-		OutputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		OutputBarriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		OutputBarriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 		OutputBarriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 

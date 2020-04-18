@@ -38,7 +38,7 @@ using std::make_pair;
 #define Pi 3.141592654f
 
 #define usedxr
-#undef usedxr
+//#undef usedxr
 
 class DxException
 {
