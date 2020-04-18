@@ -51,9 +51,8 @@ private:
 	void OnMouseMove(WPARAM btnState, int x, int y);
 	void OnMouseDown(WPARAM btnState, int x, int y);
 	void OnMouseUp(WPARAM btnState, int x, int y);
-	void UpdateCamera();
+	void Update_Camera();
 
-	int	frameIndexFromStart = 0;
 	Point lastMousePos;
 	float mTheta = 1.5f * Pi;
 	float mPhi = 0.785398163f;

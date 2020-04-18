@@ -61,10 +61,10 @@ void DXRApplication::Init(ConfigInfo& config)
 	D3D12Render::Create_Pipeline_State(d3d, d3dRender);
 
 	// Create DXR specific resources
-	/*DXR::Create_Bottom_Level_AS(d3d, dxr, resources, testModel);
+	/*DXR::Create_Bottom_Level_AS(d3d, dxr, resources, model);
 	DXR::Create_Top_Level_AS(d3d, dxr, resources);
 	DXR::Create_DXR_Output(d3d, resources);
-	DXR::Create_Descriptor_Heaps(d3d, dxr, resources, testModel);
+	DXR::Create_Descriptor_Heaps(d3d, dxr, resources, model);
 	DXR::Create_RayGen_Program(d3d, dxr, shaderCompiler);
 	DXR::Create_Miss_Program(d3d, dxr, shaderCompiler);
 	DXR::Create_Closest_Hit_Program(d3d, dxr, shaderCompiler);
@@ -81,16 +81,15 @@ void DXRApplication::Init(ConfigInfo& config)
 
 void DXRApplication::Update()
 {
-	frameIndexFromStart;
-	UpdateCamera();
+	Update_Camera();
 	D3DResources::Update_BasePass_CB(d3d, resources,camera);
-	//D3DResources::Update_DXR_CB(d3d, resources);
+	//D3DResources::Update_DXR_CB(d3d, resources,camera);
 }
 
 void DXRApplication::Render()
 {
-	D3D12Render::DrawBasePass(d3d, d3dRender, resources, model);
-	//DXR::Build_Command_List(d3d, dxr, resources);
+	D3D12Render::Draw_Base_Pass(d3d, d3dRender, resources, model);
+	//DXR::Draw_RayTracing_AO(d3d, dxr, resources);
 
 	D3D12::Submit_CmdList(d3d);
 	D3D12::WaitForGPU(d3d);
@@ -114,10 +113,11 @@ void DXRApplication::Cleanup()
 	DestroyWindow(window);
 }
 
-void DXRApplication::UpdateCamera() {
+void DXRApplication::Update_Camera() {
 	camera.x = mRadius * sinf(mPhi) * cosf(mTheta);
 	camera.z = mRadius * sinf(mPhi) * sinf(mTheta);
 	camera.y = mRadius * cosf(mPhi);
+	camera.frameIndexFromStart++;
 }
 
 void DXRApplication::OnMouseDown(WPARAM btnState, int x, int y)

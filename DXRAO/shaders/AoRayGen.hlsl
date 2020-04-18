@@ -7,7 +7,7 @@ void RayGen()
 
 	RandomSequence RandSequence;
 	uint linearIndex = calcLinearIndex(pixelCoord);
-	RandomSequence_Initialize(RandSequence, linearIndex, stateFrameIndex);
+	RandomSequence_Initialize(RandSequence, linearIndex, startFrameIndex);
 
 	//Get surface data from triditional pass
 	float2 InvBufferSize = bufferSizeAndInvSize.zw;

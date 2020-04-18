@@ -83,8 +83,11 @@ struct Camera {
 	float nearZ;
 	float farZ;
 
+	int frameIndexFromStart;
+
 	Camera() :Camera(1920.f / 1080.f) {};
-	Camera(float _aspect) :x(0.f), y(0.f), z(0.f), fov(65.f * (3.141592654f / 180.f)), nearZ(1.f),farZ(1000.f),aspect(_aspect) {}
+	Camera(float _aspect) :x(0.f), y(0.f), z(0.f), fov(65.f * (3.141592654f / 180.f)), 
+		nearZ(1.f),farZ(1000.f),aspect(_aspect), frameIndexFromStart(0){}
 };
 
 struct Model
@@ -115,7 +118,7 @@ struct ViewCB
 	DirectX::XMFLOAT3 translatedWorldCameraOrigin;
 	float  padding01;
 	DirectX::XMFLOAT3 worldCameraOrigin;
-	unsigned int stateFrameIndex;
+	unsigned int startFrameIndex;
 	DirectX::XMFLOAT4X4 svPositionToTranslatedWorld;
 };
 

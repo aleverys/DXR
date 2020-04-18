@@ -38,7 +38,7 @@ namespace D3DResources
 	void Create_DSV_Descriptor_Heaps(D3D12Global& d3d, D3D12Resources& resources);
 
 	void Update_BasePass_CB(D3D12Global& d3d, D3D12Resources& resources, Camera& camera);
-	void Update_DXR_CB(D3D12Global& d3d, D3D12Resources& resources);
+	void Update_DXR_CB(D3D12Global& d3d, D3D12Resources& resources, Camera& camera);
 
 	void Upload_Texture(D3D12Global& d3d, ID3D12Resource* destResource, ID3D12Resource* srcResource, const TextureInfo& texture);
 
@@ -86,7 +86,7 @@ namespace D3D12Render {
 	void Create_Pipeline_State(D3D12Global& d3d, D3D12RenderGlobal& d3dRender);
 	void Create_Normal_Buffer_And_RTV(D3D12Global& d3d, D3D12Resources& resources);
 
-	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources, Model& model);
+	void Draw_Base_Pass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources, Model& model);
 
 	void Destroy(D3D12RenderGlobal& d3dRender);
 };
@@ -103,7 +103,7 @@ namespace DXR
 	void Create_Descriptor_Heaps(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources, const Model& model);
 	void Create_DXR_Output(D3D12Global& d3d, D3D12Resources& resources);
 
-	void Build_Command_List(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources);
+	void Draw_RayTracing_AO(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources);
 
 	void Destroy(DXRGlobal& dxr);
 }

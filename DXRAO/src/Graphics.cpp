@@ -432,11 +432,11 @@ namespace D3DResources
 	/**
 	* Update the view constant buffer.
 	*/
-	void Update_DXR_CB(D3D12Global& d3d, D3D12Resources& resources)
+	void Update_DXR_CB(D3D12Global& d3d, D3D12Resources& resources,Camera& camera)
 	{
 		const float rotationSpeed = 0.005f;
 		//const float rotationSpeed = 0.f;
-		XMMATRIX view, invView;
+		XMMATRIX world,view, invView,proj;
 		XMFLOAT3 eye, focus, up;
 		float aspect, fov;
 
@@ -463,19 +463,22 @@ namespace D3DResources
 
 		resources.rotationOffset += rotationSpeed;
 
+		world = XMMatrixIdentity();
 		view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&focus), XMLoadFloat3(&up));
 		invView = XMMatrixInverse(NULL, view);
 
+		proj= XMMatrixPerspectiveFovLH(camera.fov, camera.aspect, camera.nearZ, camera.farZ);
+
 		//Update DXR ViewConstantBuffer
 #ifdef usedxr
-		XMMATRIX worldViewProj = XMMatrixIdentity() * view * proj;
+		XMMATRIX worldViewProj =  world * view * proj;
 		XMMATRIX worldViewProjInverse = XMMatrixInverse(NULL, worldViewProj);
 
-		resources.viewCBData.bufferSizeAndInvSize = XMFLOAT4(d3d.width, d3d.height, 1 / (float)d3d.width, 1 / (float)d3d.height);
-		resources.viewCBData.stateFrameIndex = resources.frameIndexFromStart;
-		XMStoreFloat4x4(&resources.viewCBData.svPositionToTranslatedWorld, worldViewProjInverse);
+		resources.viewCBData.bufferSizeAndInvSize = XMFLOAT4(d3d.width, d3d.height, 1.f / (float)d3d.width, 1.f / (float)d3d.height);
 		resources.viewCBData.translatedWorldCameraOrigin = eye;
 		resources.viewCBData.worldCameraOrigin = eye;
+		resources.viewCBData.startFrameIndex = camera.frameIndexFromStart;
+		XMStoreFloat4x4(&resources.viewCBData.svPositionToTranslatedWorld, XMMatrixTranspose(worldViewProjInverse));
 
 		memcpy(resources.viewCBStart, &resources.viewCBData, sizeof(resources.viewCBData));
 #endif
@@ -683,25 +686,14 @@ namespace D3DShaders
 		const std::string& entrypoint,
 		const std::string& target)
 	{
-		UINT compileFlags = 0;
-#if defined(DEBUG) || defined(_DEBUG)  
-		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-
 		HRESULT hr = S_OK;
 
 		ID3DBlob* byteCode = nullptr;
 
 		DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef _DEBUG
-		// 设置 D3DCOMPILE_DEBUG 标志用于获取着色器调试信息。该标志可以提升调试体验，
-		// 但仍然允许着色器进行优化操作
-		dwShaderFlags |= D3DCOMPILE_DEBUG;
-
-		// 在Debug环境下禁用优化以避免出现一些不合理的情况
-		dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#if defined(DEBUG) || defined(_DEBUG)  
+		dwShaderFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
-
 		ComPtr<ID3DBlob> errors;
 		hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 			entrypoint.c_str(), target.c_str(), dwShaderFlags, 0, &byteCode, &errors);
@@ -1238,7 +1230,7 @@ namespace D3D12Render {
 
 	}
 
-	void DrawBasePass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources, Model& model) {
+	void Draw_Base_Pass(D3D12Global& d3d, D3D12RenderGlobal& d3dRender, D3D12Resources& resources, Model& model) {
 		auto& commandList = d3d.cmdList;
 		//Bind Root Signatures and Resources
 		ID3D12DescriptorHeap* descriptorHeaps[] = { resources.dxBasePassRenderDescriptorHeap };
@@ -1947,7 +1939,7 @@ namespace DXR
 	/**
 	* Builds the frame's DXR command list.
 	*/
-	void Build_Command_List(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources)
+	void Draw_RayTracing_AO(D3D12Global& d3d, DXRGlobal& dxr, D3D12Resources& resources)
 	{
 		D3D12_RESOURCE_BARRIER OutputBarriers[2] = {};
 		D3D12_RESOURCE_BARRIER CounterBarriers[2] = {};

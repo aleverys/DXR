@@ -28,14 +28,13 @@ cbuffer RayConfig : register(b0)
 	float maxNormalBias;
 };
 
-
 cbuffer ViewCB : register(b1)
 {
 	float4 bufferSizeAndInvSize;
 	float3 translatedWorldCameraOrigin;
 	float padding01;
 	float3 worldCameraOrigin;
-	uint stateFrameIndex;
+	uint startFrameIndex;
     float4x4 svPositionToTranslatedWorld;
 }
 
@@ -53,12 +52,13 @@ Texture2D depthBuffer : register(t3);
 
 Texture2D<float4> normalBuffer : register(t4);
 
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamPointWrap        : register(s0);
+SamplerState gsamPointClamp       : register(s1);
+SamplerState gsamLinearWrap       : register(s2);
+SamplerState gsamLinearClamp      : register(s3);
+SamplerState gsamAnisotropicWrap  : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
+SamplerComparisonState gsamShadow : register(s6);
 
 float4 CosineSampleHemisphere( float2 E )
 {
