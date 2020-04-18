@@ -1120,12 +1120,13 @@ namespace D3D12Render {
 		normalBufferDesc.SampleDesc.Count = 1;
 		normalBufferDesc.SampleDesc.Quality = 0;
 		normalBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-		normalBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		normalBufferDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
+		//normalBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		normalBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		normalBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;;
 
 		// Create the texture resource
-		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
+		HRESULT hr = d3d.device->CreateCommittedResource(&DefaultHeapProperties, D3D12_HEAP_FLAG_NONE, &normalBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resources.normalBuffer));
 		Utils::Validate(hr, L"Error: failed to create texture!");
 #if NAME_D3D_RESOURCES
 		resources.normalBuffer->SetName(L"NORMAL_BUFFER");
@@ -1259,7 +1260,7 @@ namespace D3D12Render {
 
 		//Convert Normal Buffer To Writable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
-			D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 		//Set RenderTargets
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
@@ -1271,7 +1272,7 @@ namespace D3D12Render {
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[] = { rtvHandle,normalRTVHandle };
 
-		//commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0, nullptr);
+		commandList->ClearRenderTargetView(rtvHandle, Colors::White, 0, nullptr);
 		commandList->ClearRenderTargetView(normalRTVHandle, Colors::White, 0, nullptr);
 		commandList->OMSetRenderTargets(2, rtvHandles, false, &resources.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -1294,15 +1295,18 @@ namespace D3D12Render {
 
 		//Convert Normal Buffer Readable
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resources.normalBuffer,
-			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
 
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
+		/*commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST));
 
 		commandList->CopyResource(d3d.backBuffer[d3d.frameIndex], resources.normalBuffer);
 		
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
-			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));*/
+
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(d3d.backBuffer[d3d.frameIndex],
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	}
 
